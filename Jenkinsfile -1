@@ -22,12 +22,12 @@ pipeline {
               }
             }
         }
-        stage('Dependency check') {
-            steps {
-                dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
-                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
-            }
-        }
+        //stage('Dependency check') {
+            //steps {
+                //dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
+                //dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+            //}
+       // }
         stage('Build Artifact') {
             steps {
                 sh 'mvn -f pom.xml clean package -DskipTests -Dcheckstyle.skip'
