@@ -56,11 +56,11 @@ pipeline {
                   }
               }
         }                
-        //stage('Trivy image scan') {
-            //steps {
-                //sh "trivy image cloudhight/testapp > trivyfs.txt"
-            //}             
-        //}
+        stage('Trivy image scan') {
+            steps {
+                sh "trivy image cloudhight/testapp > trivyfs.txt"
+            }             
+        }
         stage('Trigger Ansible to deploy app') {
             steps {
                 sshagent (['ansible-key']) {
