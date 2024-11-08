@@ -71,7 +71,7 @@ pipeline {
         }
         stage('slack notification') {
             steps {
-                slackSend channel: '22nd-july-pet-adoption-jenkins-pipeline-project-eu-team', message: 'Application deploy successfully ', teamDomain: 'Cloudhight', tokenCredentialId: 'slack-cred'
+                slackSend channel: '14th-oct-2024-pet-adoption-project', message: 'Application deploy successfully ', teamDomain: 'Cloudhight', tokenCredentialId: 'slack-cred'
             }
         }
     }
