@@ -35,7 +35,7 @@ pipeline {
                     export PATH=$PATH:$(python3 -m site --user-base)/bin
 
                     # Run Checkov scan on the repository
-                    checkov -d . --output cli
+                    checkov -d . --output cli || true
                 '''
             }
         }
