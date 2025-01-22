@@ -31,8 +31,8 @@ pipeline {
         stage('Infrastructure Security Scan') {
             steps {
                 sh '''
-                    # Install Checkov if not already installed
-                    pip install checkov --quiet || echo "Checkov already installed"
+                    # Ensure correct PATH for Checkov command
+                    export PATH=$PATH:$(python3 -m site --user-base)/bin
 
                     # Run Checkov scan on the repository
                     checkov -d . --output cli
