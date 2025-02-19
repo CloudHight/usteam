@@ -24,8 +24,15 @@ pipeline{
         }
         stage('Dependency Check') {
             steps {
-                dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey <$NVDKEY>', odcInstallation: 'DP-Check'
+                dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey ${NVDKEY}', odcInstallation: 'DP-Check'
                 dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+            }
+        }
+        stage('Security cleared Approval') {
+            steps {
+                timeout(activity: true, time: 10) {
+                    input message: 'Needs Approval ', submitter: 'admin'
+                }
             }
         }
         // stage('Test Code') {
@@ -77,6 +84,13 @@ pipeline{
         stage('Trivy image Scan') {
             steps {
                 sh "trivy image $NEXUS_REPO/petclinicapps > trivyfs.txt"
+            }
+        }
+        stage('Security cleared Approval (trivy)') {
+            steps {
+                timeout(activity: true, time: 10) {
+                    input message: 'Needs Approval ', submitter: 'admin'
+                }
             }
         }
         stage('Deploy to stage') {
