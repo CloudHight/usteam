@@ -28,7 +28,7 @@ pipeline{
                 dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
         }
-        stage('slack notification') {
+        stage('STAST report slack notification') {
             steps {
                 slackSend channel: '27th-jan-auto-discovery-project', message: 'Security Scan report generated and waiting for review before approval ', teamDomain: 'Cloudhight', tokenCredentialId: 'slack-cred'
             }
@@ -91,7 +91,7 @@ pipeline{
                 sh "trivy image $NEXUS_REPO/petclinicapps > trivyfs.txt"
             }
         }
-        stage('slack notification') {
+        stage('Trivy report slack notification') {
             steps {
                 slackSend channel: '27th-jan-auto-discovery-project', message: 'Image Security Scan report generated and waiting for review before approval ', teamDomain: 'Cloudhight', tokenCredentialId: 'slack-cred'
             }
