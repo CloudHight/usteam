@@ -88,7 +88,7 @@ pipeline{
         }
         stage('Trivy image Scan') {
             steps {
-                sh "trivy image $NEXUS_REPO/petclinicapps > trivyfs.txt"
+                sh "trivy image $NEXUS_REPO/petclinicapps > trivyfs_image.json"
             }
         }
         stage('Trivy report slack notification') {
