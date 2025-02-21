@@ -35,7 +35,7 @@ WORKDIR /usr/local/tomcat/webapps
 RUN curl -O https://download.newrelic.com/newrelic/java-agent/newrelic-agent/current/newrelic-java.zip && \
     apt-get install unzip -y  && \
     unzip newrelic-java.zip -d  /usr/local/tomcat/webapps
-ENV JAVA_OPTS="$JAVA_OPTS -javaagent:/usr/local/tomcat/webapps/newrelic/newrelic.jar"
+ENV JAVA_OPTS="-javaagent:/usr/local/tomcat/webapps/newrelic/newrelic.jar"
 ENV NEW_RELIC_APP_NAME="Pet-Adoption"
 ENV NEW_RELIC_LOG_FILE_NAME=STDOUT
 ENV NEW_RELIC_LICENCE_KEY="eu01xx997eab4b8a20a23586bd4dc4b5FFFFNRAL"
