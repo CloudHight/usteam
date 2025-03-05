@@ -83,7 +83,7 @@ pipeline {
         }
         stage('slack notification') {
             steps {
-                slackSend channel: '9th-dec-jenkins-pipeline-containerization-project', message: 'Application deploy successfully ', teamDomain: 'Cloudhight', tokenCredentialId: 'slack-cred'
+                slackSend channel: '24th-february-jenkins-pipeline-project-team-1', message: 'Application deploy successfully ', teamDomain: 'Cloudhight', tokenCredentialId: 'slack-cred'
             }
         }
     }
