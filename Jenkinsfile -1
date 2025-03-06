@@ -1,5 +1,8 @@
 pipeline {
     agent any
+environment {
+        NVD_API_KEY = credentials('nvd-key') // Use Jenkins credentials store
+    }
     stages {
         stage('Code Checkout') {
             steps {
@@ -22,16 +25,16 @@ pipeline {
               }
             }
         }
-        stage('Dependency check') {
+        stages {
+        stage('Dependency Check') {
             steps {
-                withCredentials([string(credentialsId: 'nvd-key', variable: 'NVD_API_KEY')]) {
-                    dependencyCheck additionalArguments: "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey $NVD_API_KEY", 
-                        odcInstallation: 'DP-Check'
-                }
-                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+                sh '''
+                export NVD_API_KEY=${nvd-key}
+                dependency-check --project myapp --scan . --nvdApiKey $NVD_API_KEY
+                '''
             }
         }
-        stage('Infrastructure Security Scan') {
+        stage('Checkov Scan') {
             steps {
                 sh '''
                     # Ensure correct PATH for Checkov command
