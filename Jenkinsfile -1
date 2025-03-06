@@ -25,7 +25,6 @@ environment {
               }
             }
         }
-        stages {
         stage('Dependency Check') {
             steps {
                 sh '''
