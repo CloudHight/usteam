@@ -30,7 +30,7 @@ pipeline{
         }
         stage('STAST report slack notification') {
             steps {
-                slackSend channel: '27th-jan-auto-discovery-project', message: 'Security Scan report generated and waiting for review before approval ', teamDomain: 'Cloudhight', tokenCredentialId: 'slack-cred'
+                slackSend channel: '24th-february-auto-discovery-project', message: 'Security Scan report generated and waiting for review before approval ', teamDomain: 'Cloudhight', tokenCredentialId: 'slack-cred'
             }
         }
         stage('Security cleared Approval') {
@@ -93,7 +93,7 @@ pipeline{
         }
         stage('Trivy report slack notification') {
             steps {
-                slackSend channel: '27th-jan-auto-discovery-project', message: 'Image Security Scan report generated and waiting for review before approval ', teamDomain: 'Cloudhight', tokenCredentialId: 'slack-cred'
+                slackSend channel: '24th-february-auto-discovery-project', message: 'Image Security Scan report generated and waiting for review before approval ', teamDomain: 'Cloudhight', tokenCredentialId: 'slack-cred'
             }
         }
         stage('Security cleared Approval (trivy)') {
