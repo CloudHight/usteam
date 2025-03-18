@@ -77,18 +77,69 @@ pipeline {
                 sh "trivy image cloudhight/testapp > trivyfs.txt"
             }             
         }
-        stage('Trigger Ansible to deploy app') {
+        stage('Deploy to stage') {
             steps {
                 sshagent (['ansible-key']) {
-                      sh 'ssh -t -t ec2-user@15.236.186.162 -o strictHostKeyChecking=no "cd /etc/ansible && ansible-playbook /opt/docker/docker-container.yml"'
-                      sh 'ssh -t -t ec2-user@15.236.186.162 -o strictHostKeyChecking=no "cd /etc/ansible && ansible-playbook /opt/docker/newrelic-container.yml"'
-                  }
-              }
-        }
-        stage('slack notification') {
-            steps {
-                slackSend channel: '24th-february-jenkins-pipeline-project-team-1', message: 'Application deploy successfully ', teamDomain: 'Cloudhight', tokenCredentialId: 'slack-cred'
+                    sh "ssh -t -t ec2-user@15.188.89.85 -o strictHostKeyChecking=no \"cd /etc/ansible && ansible-playbook /opt/docker/docker-container.yml\""
+                    sh "ssh -t -t ec2-user@15.188.89.85 -o strictHostKeyChecking=no \"cd /etc/ansible && ansible-playbook /opt/docker/newrelic-container.yml\""
+                }
             }
         }
+        
+        stage('check stage website availability') {
+            steps {
+                 sh "sleep 90"
+                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://stage.selfdevops.space"
+                script {
+                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.selfdevops.space", returnStdout: true).trim()
+                    if (response == "200") {
+                        slackSend(color: 'good', message: "The stage petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
+                    } else {
+                        slackSend(color: 'danger', message: "The stage petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
+                    }
+                }
+            }
+        }
+        stage('Request for Approval') {
+            steps {
+                timeout(activity: true, time: 10) {
+                    input message: 'Needs Approval ', submitter: 'admin'
+                }
+            }
+        }
+
+
+        stage('Deploy to Prod') {
+            steps {
+                sshagent (['ansible-key']) {
+                    sh "ssh -t -t ec2-user@15.188.89.85 -o strictHostKeyChecking=no \"cd /etc/ansible && ansible-playbook /opt/docker/docker-container.yml\""
+                    sh "ssh -t -t ec2-user@15.188.89.85 -o strictHostKeyChecking=no \"cd /etc/ansible && ansible-playbook /opt/docker/newrelic-container.yml\""
+                }
+            }
+        }
+
+        stage('check stage website availability') {
+            steps {
+                 sh "sleep 90"
+                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://selfdevops.space"
+                script {
+                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://selfdevops.space", returnStdout: true).trim()
+                    if (response == "200") {
+                        slackSend(color: 'good', message: "The stage petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
+                    } else {
+                        slackSend(color: 'danger', message: "The stage petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
+                    }
+                }
+            }
+        }
+        stage('Request for Approval') {
+            steps {
+                timeout(activity: true, time: 10) {
+                    input message: 'Needs Approval ', submitter: 'admin'
+                }
+            }
+        }
+
     }
+
 }
