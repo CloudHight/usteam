@@ -1,0 +1,52 @@
+<html xmlns:th="https://www.thymeleaf.org" th:replace="~{fragments/layout :: layout (~{::body},'home')}">
+
+  <body>
+
+    <h1 th:text="#{Welcome to Pet Adoption EU Team2}">Welcome to Pet Adoption Auto-Discovery EU Team-1 Project</h1>
+    
+    <div class="row">
+        <div class="col-md-12 text-center">
+          <img class="img-responsive" src="../static/resources/images/cat1.jpg" th:src="@{/resources/images/cat1.jpg}" alt="Happy pet at vet clinic"/>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-md-4 text-center">
+          <img class="img-responsive" src="../static/resources/images/dog1.jpg" th:src="@{/resources/images/dog1.jpg}" alt="Playful puppy"/>
+        </div>
+        <div class="col-md-4 text-center">
+          <img class="img-responsive" src="../static/resources/images/cat2.jpg" th:src="@{/resources/images/cat2.jpg}" alt="Cute kitten"/>
+        </div>
+        <div class="col-md-4 text-center">
+          <img class="img-responsive" src="../static/resources/images/dog1.jpg" th:src="@{/resources/images/dog2.jpg}" alt="Happy dog at park"/>
+        </div>
+    </div>
+    
+    <div class="container mt-4">
+        <h2>About Our Veterinary Services</h2>
+        <p>We provide top-notch veterinary services to ensure your pet stays happy and healthy. Our team of experienced veterinarians offers a range of services including general check-ups, vaccinations, dental care, and emergency treatments.</p>
+    </div>
+    
+    <div class="container mt-4">
+        <h2>Our Services</h2>
+        <ul>
+            <li>General Health Checkups</li>
+            <li>Vaccinations and Preventative Care</li>
+            <li>Surgery and Emergency Care</li>
+            <li>Dental Cleaning and Oral Health</li>
+            <li>Microchipping and Pet Identification</li>
+            <li>Pet Nutrition and Diet Plans</li>
+        </ul>
+    </div>
+    
+    <div class="container mt-4">
+        <h2>Contact Us</h2>
+        <p>📍 Address: 123 Pet Care Street, EU City</p>
+        <p>📞 Phone: +123 456 789</p>
+        <p>📧 Email: contact@veteu.com</p>
+        <p>⏰ Opening Hours: Mon-Fri 9:00 AM - 6:00 PM | Sat 10:00 AM - 4:00 PM</p>
+    </div>
+    
+  </body>
+
+</html>
