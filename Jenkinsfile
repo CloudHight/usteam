@@ -8,7 +8,6 @@ pipeline{
         NEXUS_REPO = credentials('nexus-repo')
         NVDKEY  = credentials('nvd-key')
         ANSIBLE_IP  = credentials('ansible-ip')
-        SLACK_CHANNEL  = credentials('slack-channel')
     }
     stages {
         stage('Code Analysis') {
