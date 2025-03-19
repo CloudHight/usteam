@@ -33,7 +33,7 @@ pipeline{
         }
         stage('STAST report slack notification') {
             steps {
-                slackSend channel: '$SLACK_CHANNEL', message: 'Security Scan report generated and waiting for review before approval ', teamDomain: 'Cloudhight', tokenCredentialId: 'slack-cred'
+                slackSend channel: $SLACK_CHANNEL , message: 'Security Scan report generated and waiting for review before approval ', teamDomain: 'Cloudhight', tokenCredentialId: 'slack-cred'
             }
         }
         stage('Security cleared Approval') {
@@ -96,7 +96,7 @@ pipeline{
         }
         stage('Trivy report slack notification') {
             steps {
-                slackSend channel: '$SLACK_CHANNEL', message: 'Image Security Scan report generated and waiting for review before approval ', teamDomain: 'Cloudhight', tokenCredentialId: 'slack-cred'
+                slackSend channel: $SLACK_CHANNEL, message: 'Image Security Scan report generated and waiting for review before approval ', teamDomain: 'Cloudhight', tokenCredentialId: 'slack-cred'
             }
         }
         stage('Security cleared Approval (trivy)') {
