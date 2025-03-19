@@ -1,5 +1,7 @@
 pipeline{
-    agent any
+    agent {
+        label "jenkins-node"
+    }
     environment {
         NEXUS_USER = credentials('nexus-username')
         NEXUS_PASSWORD = credentials('nexus-password')
