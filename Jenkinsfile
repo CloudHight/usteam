@@ -108,7 +108,7 @@ pipeline{
         }
         stage('Deploy to stage') {
             steps {
-                sshagent(['ansible-key']) {
+                sshagent(['ssh-node']) {
                     sh 'ssh -t -t ec2-user@$ANSIBLE_IP -o strictHostKeyChecking=no "ansible-playbook -i /etc/ansible/stage-hosts /etc/ansible/stage-playbook.yml"'
                 }
             }
@@ -136,7 +136,7 @@ pipeline{
         }
         stage('Deploy to prod') {
             steps {
-                sshagent(['ansible-key']) {
+                sshagent(['ssh-node']) {
                     sh 'ssh -t -t ec2-user@$ANSIBLE_IP -o strictHostKeyChecking=no "ansible-playbook -i /etc/ansible/prod-hosts /etc/ansible/prod-playbook.yml"'
                 }
             }
