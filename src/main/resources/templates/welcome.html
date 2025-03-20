@@ -1,58 +1,90 @@
 <html xmlns:th="https://www.thymeleaf.org" th:replace="~{fragments/layout :: layout (~{::body},'home')}">
 
+  <head>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f8f9fa;
+      }
+      .hero {
+        background: linear-gradient(135deg, #ff9a9e, #fad0c4);
+        padding: 60px 0;
+        color: white;
+        text-align: center;
+      }
+      .rounded-img {
+        border-radius: 15px;
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      .service-list {
+        display: flex;
+        justify-content: space-around;
+        flex-wrap: wrap;
+      }
+      .service-list li {
+        background: #ff6f61;
+        color: white;
+        padding: 10px;
+        border-radius: 5px;
+        margin: 5px;
+        list-style: none;
+      }
+    </style>
+  </head>
+
   <body>
 
-    <header class="text-center py-5 bg-primary text-white">
+    <header class="hero">
       <h1 th:text="#{Welcome.to.Pet.Adoption.EU.Team2}">Welcome to Pet Adoption Auto-Discovery EU Team-1 Project</h1>
       <p>Your trusted veterinary care center</p>
     </header>
     
     <section class="container text-center my-5">
-        <img class="img-fluid rounded shadow-lg" src="../static/resources/images/cat1.jpg" th:src="@{/resources/images/cat1.jpg}" alt="Happy pet at vet clinic"/>
+        <img class="img-fluid rounded-img" src="../static/resources/images/cat1.jpg" th:src="@{/resources/images/cat1.jpg}" alt="Happy pet at vet clinic" width="80%"/>
     </section>
     
     <section class="container text-center my-5">
-        <h2 class="mb-4">Our Lovely Pets</h2>
+        <h2 class="mb-4 text-primary">Our Lovely Pets</h2>
         <div class="row">
             <div class="col-md-4">
-              <img class="img-fluid rounded shadow" src="../static/resources/images/dog1.jpg" th:src="@{/resources/images/dog1.jpg}" alt="Playful puppy"/>
+              <img class="img-fluid rounded-img" src="../static/resources/images/dog1.jpg" th:src="@{/resources/images/dog1.jpg}" alt="Playful puppy"/>
             </div>
             <div class="col-md-4">
-              <img class="img-fluid rounded shadow" src="../static/resources/images/cat2.jpg" th:src="@{/resources/images/cat2.jpg}" alt="Cute kitten"/>
+              <img class="img-fluid rounded-img" src="../static/resources/images/cat2.jpg" th:src="@{/resources/images/cat2.jpg}" alt="Cute kitten"/>
             </div>
             <div class="col-md-4">
-              <img class="img-fluid rounded shadow" src="../static/resources/images/dog2.jpg" th:src="@{/resources/images/dog2.jpg}" alt="Happy dog at park"/>
+              <img class="img-fluid rounded-img" src="../static/resources/images/dog2.jpg" th:src="@{/resources/images/dog2.jpg}" alt="Happy dog at park"/>
             </div>
         </div>
     </section>
     
     <section class="container my-5">
-        <h2 class="text-center">About Our Veterinary Services</h2>
+        <h2 class="text-center text-success">About Our Veterinary Services</h2>
         <p class="text-center">We provide top-notch veterinary services to ensure your pet stays happy and healthy. Our team of experienced veterinarians offers a range of services including general check-ups, vaccinations, dental care, and emergency treatments.</p>
     </section>
     
     <section class="container my-5">
-        <h2 class="text-center">Our Services</h2>
+        <h2 class="text-center text-danger">Our Services</h2>
         <div class="row text-center">
             <div class="col-md-6">
-                <ul class="list-unstyled">
-                    <li>✅ General Health Checkups</li>
-                    <li>✅ Vaccinations and Preventative Care</li>
-                    <li>✅ Surgery and Emergency Care</li>
+                <ul class="service-list">
+                    <li>General Health Checkups</li>
+                    <li>Vaccinations and Preventative Care</li>
+                    <li>Surgery and Emergency Care</li>
                 </ul>
             </div>
             <div class="col-md-6">
-                <ul class="list-unstyled">
-                    <li>✅ Dental Cleaning and Oral Health</li>
-                    <li>✅ Microchipping and Pet Identification</li>
-                    <li>✅ Pet Nutrition and Diet Plans</li>
+                <ul class="service-list">
+                    <li>Dental Cleaning and Oral Health</li>
+                    <li>Microchipping and Pet Identification</li>
+                    <li>Pet Nutrition and Diet Plans</li>
                 </ul>
             </div>
         </div>
     </section>
     
     <section class="container my-5 text-center bg-light p-4 rounded shadow">
-        <h2>Contact Us</h2>
+        <h2 class="text-primary">Contact Us</h2>
         <p>📍 Address: 123 Pet Care Street, EU City</p>
         <p>📞 Phone: +123 456 789</p>
         <p>📧 Email: contact@veteu.com</p>
