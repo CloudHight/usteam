@@ -1,1 +1,62 @@
-
+pipeline{
+    agent {
+        label "JK-docker"
+    }
+    environment {
+        NEXUS_USER = credentials('nexus-username')
+        NEXUS_PASSWORD = credentials('nexus-password')
+        NEXUS_REPO = credentials('nexus-repo')
+        NVDKEY  = credentials('nvd-key')
+        ANSIBLE_IP  = credentials('ansible-ip')
+    }
+    stages {
+        stage('Code Analysis') {
+            steps {
+                withSonarQubeEnv('sonarqube') {
+                    sh 'mvn sonar:sonar'
+                }   
+            }
+        }
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 2, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+        stage('Dependency Check') {
+            steps {
+                dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey ${NVDKEY}', odcInstallation: 'DP-Check'
+                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+            }
+        }
+        stage('STAST report slack notification') {
+            steps {
+                slackSend channel: '24th-february-auto-discovery-project', message: 'Security Scan report generated and waiting for review before approval ', teamDomain: 'Cloudhight', tokenCredentialId: 'slack-cred'
+            }
+        }
+        stage('Security cleared Approval') {
+            steps {
+                timeout(activity: true, time: 10) {
+                    input message: 'Needs Approval ', submitter: 'admin'
+                }
+            }
+        }
+        // stage('Test Code') {
+        //     steps {
+        //         sh 'mvn test -Dcheckstyle.skip'
+        //     }
+        // }
+        stage('Build Artifact') {
+            steps {
+                sh 'mvn clean package -DskipTests -Dcheckstyle.skip'
+            }
+        }
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t $NEXUS_REPO/petclinicapps .'
+            }
+        }
+    }
+}
+    
