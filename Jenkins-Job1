@@ -70,27 +70,28 @@ pipeline {
                 }
             }
         }
-        post {
-            failure {
-                script {
-                    slackSend(
-                     channel: '24th-february-auto-discovery-project',
-                     message: "Pipeline failed during on job 1",
-                     tokenCredentialId: 'slack-cred',
-                     color: '#FF0000' // Red for failure
-                    )
-                }
+    }
+    post {
+        failure {
+            script {
+                slackSend(
+                  channel: '24th-february-auto-discovery-project',
+                  message: "Pipeline failed during on job 1",
+                  tokenCredentialId: 'slack-cred',
+                  color: '#FF0000' // Red for failure
+                )
             }
-            success {
-                script {
-                    slackSend(
-                     channel: '24th-february-auto-discovery-project',
-                     message: "Job1 pipeline executed successfully on Jenkins Docker slave.",
-                     tokenCredentialId: 'slack-cred',
-                     color: '#36A64F' // Green for success
-                    )
-                }
+        }
+        success {
+            script {
+                slackSend(
+                  channel: '24th-february-auto-discovery-project',
+                  message: "Job1 pipeline executed successfully on Jenkins Docker slave.",
+                  tokenCredentialId: 'slack-cred',
+                  color: '#36A64F' // Green for success
+                )
             }
         }
     }
+    
 }
