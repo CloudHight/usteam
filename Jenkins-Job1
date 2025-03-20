@@ -57,6 +57,11 @@ pipeline{
                 sh 'docker build -t $NEXUS_REPO/petclinicapps .'
             }
         }
+        stage('Trigger job2 for app deployment to enviroment') {
+            steps {
+                build wait: false, job: 'app-deploy'
+            }
+        }
     }
 }
     
