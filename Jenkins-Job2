@@ -1,6 +1,6 @@
 pipeline{
     agent {
-        label "jenkins-node"
+        label "JK-node"
     }
     environment {
         NEXUS_USER = credentials('nexus-username')
@@ -128,6 +128,28 @@ pipeline{
                     } else {
                         slackSend(color: 'danger', message: "Deployment to production environment is completed successfuly but the prod petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
                     }
+                }
+            }
+        }
+        post {
+            failure {
+                script {
+                    slackSend(
+                     channel: '24th-february-auto-discovery-project',
+                     message: "Pipeline failed during on job 2",
+                     tokenCredentialId: 'slack-cred',
+                     color: '#FF0000' // Red for failure
+                    )
+                }
+            }
+            success {
+                script {
+                    slackSend(
+                     channel: '24th-february-auto-discovery-project',
+                     message: "Job2 pipeline executed successfully on Jenkins Node Slave",
+                     tokenCredentialId: 'slack-cred',
+                     color: '#36A64F' // Green for success
+                    )
                 }
             }
         }
