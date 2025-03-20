@@ -60,8 +60,38 @@ pipeline{
         stage('Trigger job2 for app deployment to enviroment') {
             steps {
                 build wait: false, job: 'app-deploy'
+              script {
+                  slackSend(
+                    channel: '24th-february-auto-discovery-project',
+                    message: 'Triggering job2 for app deployment to evnviroments',
+                    tokenCredentialId: 'slack-cred',
+                    color: '#FFFF00' // Yellow for ongoing process
+                  )
+                }
+            }
+        }
+        post {
+            failure {
+                script {
+                    slackSend(
+                     channel: '24th-february-auto-discovery-project',
+                     message: "Pipeline failed during on job 1",
+                     tokenCredentialId: 'slack-cred',
+                     color: '#FF0000' // Red for failure
+                    )
+                }
+            }
+            success {
+                script {
+                    slackSend(
+                     channel: '24th-february-auto-discovery-project',
+                     message: "Job1 pipeline executed successfully on Jenkins Docker slave.",
+                     tokenCredentialId: 'slack-cred',
+                     color: '#36A64F' // Green for success
+                    )
+                }
             }
         }
     }
 }
-    
+  
