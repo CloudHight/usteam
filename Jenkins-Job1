@@ -1,6 +1,6 @@
 pipeline {
     agent {
-        label "JK-node"
+        label "JK-docker"
     }
     environment {
         NEXUS_USER = credentials('nexus-username')
@@ -47,6 +47,19 @@ pipeline {
         //         sh 'mvn test -Dcheckstyle.skip'
         //     }
         // }
+        stage('Trigger job2 for app deployment to enviroment') {
+            steps {
+                build wait: false, job: 'app-deploy'
+              script {
+                  slackSend(
+                    channel: '24th-february-auto-discovery-project',
+                    message: 'Triggering job2 for app deployment to evnviroments',
+                    tokenCredentialId: 'slack-cred',
+                    color: '#FFFF00' // Yellow for ongoing process
+                  )
+                }
+            }
+        }
     }
     post {
         failure {
