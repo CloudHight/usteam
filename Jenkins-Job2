@@ -10,21 +10,6 @@ pipeline{
         ANSIBLE_IP  = credentials('ansible-ip')
     }
     stages {
-        stage('Push Artifact to Nexus Repo') {
-            steps {
-                nexusArtifactUploader artifacts: [[artifactId: 'spring-petclinic',
-                classifier: '',
-                file: 'target/spring-petclinic-2.4.2.war',
-                type: 'war']],
-                credentialsId: 'nexus-cred',
-                groupId: 'Petclinic',
-                nexusUrl: 'nexus.hullerdata.com',
-                nexusVersion: 'nexus3',
-                protocol: 'https',
-                repository: 'nexus-repo',
-                version: '1.0'
-            }
-        }
         stage('Trivy fs Scan') {
             steps {
                 sh "trivy fs . > trivyfs.json"
