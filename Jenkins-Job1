@@ -1,4 +1,4 @@
-pipeline{
+pipeline {
     agent {
         label "JK-docker"
     }
@@ -94,4 +94,3 @@ pipeline{
         }
     }
 }
-  
