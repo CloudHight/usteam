@@ -87,6 +87,33 @@ pipeline{
                 }
             }
         }
+        }
+        stage('ZAP') {
+            steps {
+                  catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                  script {
+                    slackSend(
+                      channel: '24th-february-auto-discovery-project',
+                      message: 'Starting Dynamic application security test...',
+                      tokenCredentialId: 'slack-cred',
+                      color: '#FFFF00' // Yellow for ongoing process
+                    )
+                  }
+                  sh '''
+                    chmod 777 $(pwd)
+                    docker run -v $(pwd):/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t https://motivalogic.com -g gen.conf -r testreport.html
+                  '''
+                  script {
+                    slackSend(
+                      channel: '24th-february-auto-discovery-project',
+                      message: 'Dynamic application security test completed successfully.',
+                      tokenCredentialId: 'slack-cred',
+                      color: '#FFFF00' // Yellow for ongoing process
+                    )
+                  }
+                }
+            }
+        }
         stage('Request for Approval') {
             steps {
               script {
