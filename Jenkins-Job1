@@ -1,6 +1,6 @@
 pipeline {
     agent {
-        label "JK-docker"
+        label "JK-node"
     }
     environment {
         NEXUS_USER = credentials('nexus-username')
