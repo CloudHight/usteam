@@ -87,7 +87,6 @@ pipeline{
                 }
             }
         }
-        }
         stage('ZAP') {
             steps {
                   catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
@@ -181,6 +180,5 @@ pipeline{
               }
           }
       }
-  
 }
-    
+  
