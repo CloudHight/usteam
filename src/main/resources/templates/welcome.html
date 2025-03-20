@@ -1,10 +1,15 @@
 <html xmlns:th="https://www.thymeleaf.org" th:replace="~{fragments/layout :: layout (~{::body},'home')}">
 
   <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pet Adoption</title>
     <style>
       body {
         font-family: Arial, sans-serif;
         background-color: #f8f9fa;
+        margin: 0;
+        padding: 0;
       }
       .hero {
         background: linear-gradient(135deg, #ff9a9e, #fad0c4);
@@ -12,9 +17,19 @@
         color: white;
         text-align: center;
       }
+      .hero h1 {
+        margin: 0;
+        font-size: 2.5rem;
+      }
+      .hero p {
+        font-size: 1.2rem;
+        font-weight: 300;
+      }
       .rounded-img {
         border-radius: 15px;
         box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 600px;
       }
       .service-list {
         display: flex;
@@ -28,6 +43,55 @@
         border-radius: 5px;
         margin: 5px;
         list-style: none;
+        width: 48%;
+        box-sizing: border-box;
+      }
+      .text-primary {
+        color: #007bff;
+      }
+      .text-success {
+        color: #28a745;
+      }
+      .text-danger {
+        color: #dc3545;
+      }
+      .text-center {
+        text-align: center;
+      }
+      .container {
+        padding: 0 15px;
+        margin: 0 auto;
+        max-width: 1200px;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 20px; /* Ensure images have space between them */
+      }
+      .col-md-4 {
+        flex: 1 1 30%;
+        max-width: 30%;
+        padding: 10px;
+        box-sizing: border-box;
+      }
+      .bg-light {
+        background-color: #f8f9fa;
+      }
+      .p-4 {
+        padding: 2rem;
+      }
+      .rounded {
+        border-radius: 10px;
+      }
+      .shadow {
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      @media (max-width: 768px) {
+        .col-md-4 {
+          flex: 1 1 100%;
+          max-width: 100%;
+        }
       }
     </style>
   </head>
@@ -40,7 +104,7 @@
     </header>
     
     <section class="container text-center my-5">
-        <img class="img-fluid rounded-img" src="../static/resources/images/cat1.jpg" th:src="@{/resources/images/cat1.jpg}" alt="Happy pet at vet clinic" width="80%"/>
+        <img class="img-fluid rounded-img" src="../static/resources/images/cat1.jpg" th:src="@{/resources/images/cat1.jpg}" alt="Happy pet at vet clinic"/>
     </section>
     
     <section class="container text-center my-5">
