@@ -47,44 +47,6 @@ pipeline {
         //         sh 'mvn test -Dcheckstyle.skip'
         //     }
         // }
-        stage('Build Artifact') {
-            steps {
-                sh 'mvn clean package -DskipTests -Dcheckstyle.skip'
-            }
-        }
-        stage('Build Docker Image') {
-            steps {
-                sh 'docker build -t $NEXUS_REPO/petclinicapps .'
-            }
-        }
-        stage('Trigger job2 for app deployment to enviroment') {
-            steps {
-                build wait: false, job: 'app-deploy'
-              script {
-                  slackSend(
-                    channel: '24th-february-auto-discovery-project',
-                    message: 'Triggering job2 for app deployment to evnviroments',
-                    tokenCredentialId: 'slack-cred',
-                    color: '#FFFF00' // Yellow for ongoing process
-                  )
-                }
-            }
-        }
-        stage('Push Artifact to Nexus Repo') {
-            steps {
-                nexusArtifactUploader artifacts: [[artifactId: 'spring-petclinic',
-                classifier: '',
-                file: 'target/spring-petclinic-2.4.2.war',
-                type: 'war']],
-                credentialsId: 'nexus-cred',
-                groupId: 'Petclinic',
-                nexusUrl: 'nexus.hullerdata.com',
-                nexusVersion: 'nexus3',
-                protocol: 'https',
-                repository: 'nexus-repo',
-                version: '1.0'
-            }
-        }
     }
     post {
         failure {
