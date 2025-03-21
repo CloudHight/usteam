@@ -56,7 +56,7 @@ pipeline {
                 type: 'war']],
                 credentialsId: 'nexus-cred',
                 groupId: 'Petclinic',
-                nexusUrl: 'nexus1.set30.space',
+                nexusUrl: 'nexus1.wahd.solutions',
                 nexusVersion: 'nexus3',
                 protocol: 'https',
                 repository: 'nexus-repo',
@@ -67,8 +67,8 @@ pipeline {
             steps {
                 sshagent (['ansible-key']) {
                       // Install Docker collection first                     
-                      sh 'ssh -t -t ec2-user@15.236.18.195 -o strictHostKeyChecking=no "ansible-galaxy collection install community.docker"'
-                      sh 'ssh -t -t ec2-user@15.236.18.195 -o strictHostKeyChecking=no "cd /etc/ansible && ansible-playbook /opt/docker/docker-image.yml"'
+                      sh 'ssh -t -t ec2-user@13.36.236.219 -o strictHostKeyChecking=no "ansible-galaxy collection install community.docker"'
+                      sh 'ssh -t -t ec2-user@13.36.236.219 -o strictHostKeyChecking=no "cd /etc/ansible && ansible-playbook /opt/docker/docker-image.yml"'
                   }
               }
         }                
@@ -80,8 +80,8 @@ pipeline {
         stage('Deploy to stage') {
             steps {
                 sshagent (['ansible-key']) {
-                    sh "ssh -t -t ec2-user@15.236.18.195 -o strictHostKeyChecking=no \"cd /etc/ansible && ansible-playbook /opt/docker/docker-container.yml\""
-                    sh "ssh -t -t ec2-user@15.236.18.195 -o strictHostKeyChecking=no \"cd /etc/ansible && ansible-playbook /opt/docker/newrelic-container.yml\""
+                    sh "ssh -t -t ec2-user@13.36.236.219 -o strictHostKeyChecking=no \"cd /etc/ansible && ansible-playbook /opt/docker/docker-container.yml\""
+                    sh "ssh -t -t ec2-user@13.36.236.219 -o strictHostKeyChecking=no \"cd /etc/ansible && ansible-playbook /opt/docker/newrelic-container.yml\""
                 }
             }
         }
@@ -89,9 +89,9 @@ pipeline {
         stage('check website availability') {
             steps {
                  sh "sleep 90"
-                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://stage1.set30.space"
+                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://stage.wahd.solutions"
                 script {
-                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage1.set30.space", returnStdout: true).trim()
+                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.wahd.solutions", returnStdout: true).trim()
                     if (response == "200") {
                         slackSend(color: 'good', message: "The stage petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
                     } else {
@@ -112,8 +112,8 @@ pipeline {
         stage('Deploy to Prod') {
             steps {
                 sshagent (['ansible-key']) {
-                    sh "ssh -t -t ec2-user@15.236.18.195 -o strictHostKeyChecking=no \"cd /etc/ansible && ansible-playbook /opt/docker/docker-container.yml\""
-                    sh "ssh -t -t ec2-user@15.236.18.195 -o strictHostKeyChecking=no \"cd /etc/ansible && ansible-playbook /opt/docker/newrelic-container.yml\""
+                    sh "ssh -t -t ec2-user@13.36.236.219 -o strictHostKeyChecking=no \"cd /etc/ansible && ansible-playbook /opt/docker/docker-container.yml\""
+                    sh "ssh -t -t ec2-user@13.36.236.219 -o strictHostKeyChecking=no \"cd /etc/ansible && ansible-playbook /opt/docker/newrelic-container.yml\""
                 }
             }
         }
