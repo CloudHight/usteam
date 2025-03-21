@@ -47,7 +47,7 @@ pipeline {
         // }
         stage('Trigger job2 for app deployment to enviroment') {
             steps {
-                build wait: false, job: 'app-deploy'
+                build wait: false, job: 'Jenkins-Job2-App-build-deploy'
               script {
                   slackSend(
                     channel: '24th-february-auto-discovery-project',
