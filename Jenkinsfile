@@ -6,6 +6,7 @@ pipeline{
         NEXUS_REPO = credentials('nexus-repo')
         BASTION_IP = credentials('bastion-ip')
         ANSIBLE_IP = credentials('ansible-ip')
+        NVD_API_KEY= credentials('nvd-key')
     }
     stages {
         stage('Code Analysis') {
@@ -22,9 +23,12 @@ pipeline{
                 }
             }
         }
-        stage('Dependency Check') {
+        stage('Dependency check') {
             steps {
-                dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
+                withCredentials([string(credentialsId: 'nvd-key', variable: 'NVD_API_KEY')]) {
+                    dependencyCheck additionalArguments: "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey $NVD_API_KEY",
+                        odcInstallation: 'DP-Check'
+                }
                 dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
         }
