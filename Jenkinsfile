@@ -49,7 +49,7 @@ pipeline{
                 nexusUrl: 'nexus.merijourney.space',
                 nexusVersion: 'nexus3',
                 protocol: 'https',
-                repository: 'docker-nexus-repo',
+                repository: 'nexus-repo',
                 version: '1.0'
             }
         }
