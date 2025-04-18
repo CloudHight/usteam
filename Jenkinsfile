@@ -9,7 +9,7 @@ pipeline {
         NEXUS_REPO = credentials('nexus-repo')
         NVDKEY  = credentials('nvd-key')
         ANSIBLE_IP  = credentials('ansible-ip')
-        SLACK_CHANNEL = credentials('slack-channel')          # newly added by me - Olalere
+        SLACK_CHANNEL = credentials('slack-channel')          
     }
     stages {
         stage('Build Artifact') {
