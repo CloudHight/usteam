@@ -1,12 +1,12 @@
 pipeline {
     agent any
     environment {
-        NEXUS_USER = credentials('docker-username')
-        NEXUS_PASSWORD = credentials('docker-password')
+        NEXUS_USER = credentials('nexus-username')
+        NEXUS_PASSWORD = credentials('nexus-password')
         NEXUS_REPO = credentials('nexus-docker-repo')
         NVD_API_KEY= credentials('nvd-key')
-        BASTION_IP = '13.57.216.188'
-        ANSIBLE_IP = '10.0.3.182'
+        BASTION_IP = credentials('bastion-ip')
+        ANSIBLE_IP = credentials('ansible-ip')
     }
     stages {
         stage('Code analysis stage') {
@@ -56,7 +56,7 @@ pipeline {
         }
         stage('Trivi image scan') {
             steps {
-                sh "trivy image $NEXUS_REPO/petclinicapps > trivy.txt"
+                sh "trivy image -f table $NEXUS_REPO/petclinicapps > trivy.txt"
             }
         }
         stage('Push image to Nexus repo') {
