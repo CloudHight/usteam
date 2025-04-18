@@ -93,9 +93,9 @@ pipeline {
                 script {
                     def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.aquinas.site", returnStdout: true).trim()
                     if (response == "200") {
-                        slackSend(color: 'good', message: "Deployment to stage environment is completed successfuly...The prod enterprise java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
+                        slackSend(color: 'good', message: "Deployment to stage environment is completed successfuly...The stage enterprise java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
                     } else {
-                        slackSend(color: 'danger', message: "Deployment to production environment is completed successfuly but the prod petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
+                        slackSend(color: 'danger', message: "Deployment to stage environment is completed successfuly but the prod petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
                     }
                 }
             }
@@ -150,10 +150,10 @@ pipeline {
         }
         stage('check prod website availability') {
             steps {
-                script {
+              script {
                   slackSend(
                     channel: '24th-february-auto-discovery-project',
-                    message: 'Starting deployment to production environment...',
+                    message: 'Starting deployment to stage environment...',
                     tokenCredentialId: 'slack-cred',
                     color: '#FFFF00' // Yellow for ongoing process
                   )
@@ -161,16 +161,15 @@ pipeline {
                  sh "sleep 90"
                  sh "curl -s -o /dev/null -w \"%{http_code}\" https://prod.aquinas.site"
                 script {
-                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://aquinas.site", returnStdout: true).trim()
+                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.aquinas.site", returnStdout: true).trim()
                     if (response == "200") {
-                        slackSend(color: 'good', message: "Deployment to production environment is completed successfuly...The prod enterprise java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
+                        slackSend(color: 'good', message: "Deployment to prod environment is completed successfuly...The prod enterprise java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
                     } else {
-                        slackSend(color: 'danger', message: "Deployment to production environment is completed successfuly but the prod petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
+                        slackSend(color: 'danger', message: "Deployment to prod environment is completed successfuly but the prod petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
                     }
                 }
             }
         }
-      }
       post {
           failure {
               script {
@@ -195,7 +194,6 @@ pipeline {
       }
 }
   
-
 
 
 
