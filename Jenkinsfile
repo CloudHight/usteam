@@ -3,10 +3,13 @@ pipeline{
     environment {
         NEXUS_USER = credentials('nexus-username')
         NEXUS_PASSWORD = credentials('nexus-password')
-        NEXUS_REPO = credentials('nexus-repo')
+        NEXUS_REPO = credentials('nexus-ip-port')
         BASTION_IP = credentials('bastion-ip')
         ANSIBLE_IP = credentials('ansible-ip')
         NVD_API_KEY= credentials('nvd-key')
+    }
+    triggers {
+        pollSCM('* * * * *') // Runs every minute
     }
     stages {
         stage('Code Analysis') {
@@ -32,7 +35,6 @@ pipeline{
                 dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
         }
-
         stage('Build Artifact') {
             steps {
                 sh 'mvn clean package -DskipTests -Dcheckstyle.skip'
@@ -46,7 +48,7 @@ pipeline{
                 type: 'war']],
                 credentialsId: 'nexus-cred',
                 groupId: 'Petclinic',
-                nexusUrl: 'nexus.merijourney.space',
+                nexusUrl: 'nexus.set30.space',
                 nexusVersion: 'nexus3',
                 protocol: 'https',
                 repository: 'nexus-repo',
@@ -63,6 +65,11 @@ pipeline{
                 sh 'docker login --username $NEXUS_USER --password $NEXUS_PASSWORD $NEXUS_REPO'
             }
         }
+        stage('Trivy image Scan') {
+            steps {
+                sh "trivy image -f table $NEXUS_REPO/petclinicapps > trivyfs.txt"
+            }
+        }
         stage('Push to Nexus Docker Repo') {
             steps {
                 sh 'docker push $NEXUS_REPO/petclinicapps'
@@ -71,11 +78,6 @@ pipeline{
         stage('prune docker images') {
             steps {
                 sh 'docker image prune -f'
-            }
-        }
-        stage('Trivy image Scan') {
-            steps {
-                sh "trivy image -f table $NEXUS_REPO/petclinicapps > trivyfs.txt"
             }
         }
         stage('Deploy to stage') {
@@ -90,9 +92,9 @@ pipeline{
         stage('check stage website availability') {
             steps {
                  sh "sleep 90"
-                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://stage.merijourney.space"
+                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://stage.set30.space"
                 script {
-                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.merijourney.space", returnStdout: true).trim()
+                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.set30.space", returnStdout: true).trim()
                     if (response == "200") {
                         slackSend(color: 'good', message: "The stage petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack')
                     } else {
@@ -120,9 +122,9 @@ pipeline{
         stage('check prod website availability') {
             steps {
                  sh "sleep 90"
-                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://prod.merijourney.space"
+                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://prod.stage.set30.space"
                 script {
-                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.merijourney.space", returnStdout: true).trim()
+                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.stage.set30.space", returnStdout: true).trim()
                     if (response == "200") {
                         slackSend(color: 'good', message: "The prod petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack')
                     } else {
