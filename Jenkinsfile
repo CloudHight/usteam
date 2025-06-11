@@ -162,7 +162,7 @@ pipeline{
                  sh "sleep 90"
                  sh "curl -s -o /dev/null -w \"%{http_code}\" https://prod.stage.set30.space"
                 script {
-                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.stage.set30.space", returnStdout: true).trim()
+                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.set30.space", returnStdout: true).trim()
                     if (response == "200") {
                         slackSend(color: 'good', message: "The prod petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack')
                     } else {
