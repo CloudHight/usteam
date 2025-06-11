@@ -7,6 +7,8 @@ pipeline{
         BASTION_IP = credentials('bastion-ip')
         ANSIBLE_IP = credentials('ansible-ip')
         NVD_API_KEY= credentials('nvd-key')
+        BASTION_ID= credentials('bastion-id')
+        AWS_REGION= 'eu-west-1'
     }
     triggers {
         pollSCM('* * * * *') // Runs every minute
@@ -80,14 +82,32 @@ pipeline{
                 sh 'docker image prune -f'
             }
         }
-        stage('Deploy to stage') {
-            steps {
+        stage ('Deploying to Stage Environment') {
+          steps {
+              script {
+                // Start SSM session to bastion with port forwarding for SSH (port 22)
+                sh '''
+                  aws ssm start-session \
+                    --target ${BASTION_ID} \
+                    --region ${AWS_REGION} \
+                    --document-name AWS-StartPortForwardingSession \
+                    --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
+                    &
+                  sleep 5  # Wait for port forwarding to establish
+                '''
+                // SSH through the tunnel to Ansible server on port 22
                 sshagent(['ansible-key']) {
-                    sh '''
-                         ssh -t -t -o StrictHostKeyChecking=no -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" ec2-user@${ANSIBLE_IP} "ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"
-                   '''
+                  sh '''
+                    ssh -o StrictHostKeyChecking=no \
+                        -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ubuntu@localhost -p 9999" \
+                        ec2-user@${ANSIBLE_IP} \
+                        "ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"
+                  '''
                 }
-            }
+                // Terminate the SSM session
+                sh 'pkill -f "aws ssm start-session"'
+              }
+          }
         }
         stage('check stage website availability') {
             steps {
@@ -110,14 +130,32 @@ pipeline{
                 }
             }
         }
-        stage('Deploy to prod') {
-            steps {
+        stage ('Deploying to prod Environment') {
+          steps {
+              script {
+                // Start SSM session to bastion with port forwarding for SSH (port 22)
+                sh '''
+                  aws ssm start-session \
+                    --target ${BASTION_ID} \
+                    --region ${AWS_REGION} \
+                    --document-name AWS-StartPortForwardingSession \
+                    --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
+                    &
+                  sleep 5  # Wait for port forwarding to establish
+                '''
+                // SSH through the tunnel to Ansible server on port 22
                 sshagent(['ansible-key']) {
-                    sh '''
-                         ssh -t -t -o StrictHostKeyChecking=no -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" ec2-user@${ANSIBLE_IP} "ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml"
-                   '''
+                  sh '''
+                    ssh -o StrictHostKeyChecking=no \
+                        -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ubuntu@localhost -p 9999" \
+                        ec2-user@${ANSIBLE_IP} \
+                        "ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml"
+                  '''
                 }
-            }
+                // Terminate the SSM session
+                sh 'pkill -f "aws ssm start-session"'
+              }
+          }
         }
         stage('check prod website availability') {
             steps {
