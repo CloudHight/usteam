@@ -83,14 +83,14 @@ pipeline{
                 sh 'docker image prune -f'
             }
         }
-       sshagent(['ansible-key']) {
-                  sh '''
-                    ssh -o StrictHostKeyChecking=no \
-                        -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ubuntu@localhost -p 9999" \
-                        ec2-user@${ANSIBLE_IP} \
-                        "ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"
-                  '''
-                }
+       stage('Deploy to stage') {
+    steps {
+        sshagent(['ansible-key']) {
+            sh "ssh -t -t ec2-user@10.0.3.20 -o StrictHostKeyChecking=no \"cd /etc/ansible && ansible-playbook /opt/docker/docker-container.yml\""
+            sh "ssh -t -t ec2-user@10.0.3.20 -o StrictHostKeyChecking=no \"cd /etc/ansible && ansible-playbook /opt/docker/newrelic-container.yml\""
+        }
+    }
+}
         stage('check stage website availability') {
             steps {
                  sh "sleep 90"
@@ -112,14 +112,14 @@ pipeline{
                 }
             }
         }
+        stage('Deploy to prod') {
+    steps {
         sshagent(['ansible-key']) {
-                  sh '''
-                    ssh -o StrictHostKeyChecking=no \
-                        -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ubuntu@localhost -p 9999" \
-                        ec2-user@${ANSIBLE_IP} \
-                        "ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml"
-                  '''
-                }
+            sh "ssh -t -t ec2-user@10.0.3.20 -o StrictHostKeyChecking=no \"cd /etc/ansible && ansible-playbook /opt/docker/docker-container.yml\""
+            sh "ssh -t -t ec2-user@10.0.3.20 -o StrictHostKeyChecking=no \"cd /etc/ansible && ansible-playbook /opt/docker/newrelic-container.yml\""
+        }
+    }
+}
         stage('check prod website availability') {
             steps {
                  sh "sleep 90"
