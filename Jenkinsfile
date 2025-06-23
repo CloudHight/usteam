@@ -101,6 +101,14 @@ pipeline {
                 sh 'docker image prune -f'
             }
         }
+pipeline {
+  agent any
+  stages {
+    stage('Checkout Code') {
+      steps {
+        checkout scm
+      }
+    }
 
         stage('Deploy to Stage') {
             steps {
@@ -108,7 +116,7 @@ pipeline {
                     sh '''
                         scp -o StrictHostKeyChecking=no \
                             -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
-                            ansible/deployment.yml ec2-user@$ANSIBLE_IP:/etc/ansible/deployment.yml
+                            /etc/ansible/deployment.yml ec2-user@$ANSIBLE_IP:/etc/ansible/deployment.yml
                     '''
                     sh '''
                         ssh -tt -o StrictHostKeyChecking=no \
