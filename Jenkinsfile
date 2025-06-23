@@ -21,6 +21,11 @@ pipeline {
     }
 
     stages {
+        stage('Checkout Code') {
+            steps {
+                checkout scm
+            }
+        }
 
         stage('Code Analysis') {
             steps {
@@ -101,14 +106,6 @@ pipeline {
                 sh 'docker image prune -f'
             }
         }
-pipeline {
-  agent any
-  stages {
-    stage('Checkout Code') {
-      steps {
-        checkout scm
-      }
-    }
 
         stage('Deploy to Stage') {
             steps {
