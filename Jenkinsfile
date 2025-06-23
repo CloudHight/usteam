@@ -102,10 +102,13 @@ pipeline {
 
         stage('Deploy to Stage') {
             steps {
-                withCredentials([string(credentialsId: 'ansible-ip-1', variable: 'ANSIBLE_IP')]) {
+                withCredentials([
+                    string(credentialsId: 'ansible-ip-1', variable: 'ANSIBLE_IP'),
+                    string(credentialsId: 'bastion-ip', variable: 'BASTION_IP')
+                ]) {
                     sshagent(['ansible-key']) {
                         sh(script: '''
-                            ssh -tt -o StrictHostKeyChecking=no ec2-user@$ANSIBLE_IP '
+                            ssh -tt -o StrictHostKeyChecking=no -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" ec2-user@$ANSIBLE_IP '
                                 cd /etc/ansible &&
                                 ansible-playbook /opt/docker/docker-container.yml
                             '
@@ -139,18 +142,15 @@ pipeline {
 
         stage('Deploy to Prod') {
             steps {
-                withCredentials([string(credentialsId: 'ansible-ip-1', variable: 'ANSIBLE_IP')]) {
+                withCredentials([
+                    string(credentialsId: 'ansible-ip-1', variable: 'ANSIBLE_IP'),
+                    string(credentialsId: 'bastion-ip', variable: 'BASTION_IP')
+                ]) {
                     sshagent(['ansible-key']) {
                         sh(script: '''
-                            ssh -tt -o StrictHostKeyChecking=no ec2-user@$ANSIBLE_IP '
+                            ssh -tt -o StrictHostKeyChecking=no -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" ec2-user@$ANSIBLE_IP '
                                 cd /etc/ansible &&
                                 ansible-playbook /opt/docker/docker-container.yml
-                            '
-                        ''')
-                        sh(script: '''
-                            ssh -tt -o StrictHostKeyChecking=no ec2-user@$ANSIBLE_IP '
-                                cd /etc/ansible &&
-                                ansible-playbook /opt/docker/newrelic-container.yml
                             '
                         ''')
                     }
@@ -173,4 +173,3 @@ pipeline {
         }
     }
 }
-
