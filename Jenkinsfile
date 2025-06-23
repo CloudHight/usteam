@@ -117,7 +117,7 @@ pipeline {
                     sh """
                         scp -o StrictHostKeyChecking=no \
                             -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
-                            ansible/deployment.yml ec2-user@${ANSIBLE_IP}:/etc/ansible/deployment.yml
+                            deployment.yml ec2-user@${ANSIBLE_IP}:/etc/ansible/deployment.yml
 
                         ssh -tt -o StrictHostKeyChecking=no \
                             -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
@@ -139,6 +139,47 @@ pipeline {
                         slackSend(color: 'good', message: "✅ Stage Petclinic is up (HTTP ${response})", tokenCredentialId: 'slack')
                     } else {
                         slackSend(color: 'danger', message: "🚨 Stage Petclinic is down (HTTP ${response})", tokenCredentialId: 'slack')
+                    }
+                }
+            }
+        }
+
+        stage('Request for Approval') {
+            steps {
+                timeout(time: 10, unit: 'MINUTES') {
+                    input message: 'Deploy to Production?', ok: 'Yes, Deploy'
+                }
+            }
+        }
+
+        stage('Deploy to Prod') {
+            steps {
+                sshagent(['ansible-key']) {
+                    sh """
+                        scp -o StrictHostKeyChecking=no \
+                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
+                            deployment.yml ec2-user@${ANSIBLE_IP}:/etc/ansible/prod-deployment.yml
+
+                        ssh -tt -o StrictHostKeyChecking=no \
+                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
+                            ec2-user@${ANSIBLE_IP} 'ansible-playbook /etc/ansible/prod-deployment.yml'
+                    """
+                }
+            }
+        }
+
+        stage('Check Prod Website Availability') {
+            steps {
+                sh 'sleep 90'
+                script {
+                    def response = sh(
+                        script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.chijiokedevops.space",
+                        returnStdout: true
+                    ).trim()
+                    if (response == "200") {
+                        slackSend(color: 'good', message: "✅ Prod Petclinic is up (HTTP ${response})", tokenCredentialId: 'slack')
+                    } else {
+                        slackSend(color: 'danger', message: "🚨 Prod Petclinic is down (HTTP ${response})", tokenCredentialId: 'slack')
                     }
                 }
             }
