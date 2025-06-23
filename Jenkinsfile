@@ -104,22 +104,19 @@ pipeline {
 
         stage('Deploy to Stage') {
             steps {
-                withCredentials([string(credentialsId: 'ansible-ip-1', variable: 'ANSIBLE_IP'),
-                                 string(credentialsId: 'bastion-ip', variable: 'BASTION_IP')]) {
-                    sshagent(['ansible-key']) {
-                        sh '''
-                            scp -o StrictHostKeyChecking=no \
-                                -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
-                                ./deployment.yml ec2-user@$ANSIBLE_IP:/etc/ansible/deployment.yml
-                        '''
-                        sh '''
-                            ssh -tt -o StrictHostKeyChecking=no \
-                                -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
-                                ec2-user@$ANSIBLE_IP '
-                                    ansible-playbook /etc/ansible/deployment.yml
-                                '
-                        '''
-                    }
+                sshagent(['ansible-key']) {
+                    sh '''
+                        scp -o StrictHostKeyChecking=no \
+                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
+                            ansible/deployment.yml ec2-user@$ANSIBLE_IP:/etc/ansible/deployment.yml
+                    '''
+                    sh '''
+                        ssh -tt -o StrictHostKeyChecking=no \
+                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
+                            ec2-user@$ANSIBLE_IP '
+                                ansible-playbook /etc/ansible/deployment.yml
+                            '
+                    '''
                 }
             }
         }
@@ -148,22 +145,19 @@ pipeline {
 
         stage('Deploy to Prod') {
             steps {
-                withCredentials([string(credentialsId: 'ansible-ip-1', variable: 'ANSIBLE_IP'),
-                                 string(credentialsId: 'bastion-ip', variable: 'BASTION_IP')]) {
-                    sshagent(['ansible-key']) {
-                        sh '''
-                            scp -o StrictHostKeyChecking=no \
-                                -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
-                                ./deployment.yml ec2-user@$ANSIBLE_IP:/etc/ansible/deployment.yml
-                        '''
-                        sh '''
-                            ssh -tt -o StrictHostKeyChecking=no \
-                                -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
-                                ec2-user@$ANSIBLE_IP '
-                                    ansible-playbook /etc/ansible/deployment.yml
-                                '
-                        '''
-                    }
+                sshagent(['ansible-key']) {
+                    sh '''
+                        scp -o StrictHostKeyChecking=no \
+                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
+                            ansible/deployment.yml ec2-user@$ANSIBLE_IP:/etc/ansible/deployment.yml
+                    '''
+                    sh '''
+                        ssh -tt -o StrictHostKeyChecking=no \
+                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
+                            ec2-user@$ANSIBLE_IP '
+                                ansible-playbook /etc/ansible/deployment.yml
+                            '
+                    '''
                 }
             }
         }
