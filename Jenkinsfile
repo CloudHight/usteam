@@ -1,5 +1,6 @@
 pipeline {
     agent any
+
     environment {
         NEXUS_USER      = credentials('nexus-username')
         NEXUS_PASSWORD  = credentials('nexus-password')
@@ -20,6 +21,7 @@ pipeline {
     }
 
     stages {
+
         stage('Code Analysis') {
             steps {
                 withSonarQubeEnv('sonarqube') {
@@ -38,10 +40,8 @@ pipeline {
 
         stage('Dependency Check') {
             steps {
-                withCredentials([string(credentialsId: 'nvd-key', variable: 'NVD_API_KEY')]) {
-                    dependencyCheck additionalArguments: "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey=$NVD_API_KEY",
-                        odcInstallation: 'DP-Check'
-                }
+                dependencyCheck additionalArguments: "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey=$NVD_API_KEY",
+                                odcInstallation: 'DP-Check'
                 dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
         }
@@ -84,7 +84,7 @@ pipeline {
 
         stage('Trivy Image Scan') {
             steps {
-                sh "trivy image -f table $NEXUS_REPO/petclinicapps > trivyfs.txt"
+                sh 'trivy image -f table $NEXUS_REPO/petclinicapps > trivyfs.txt'
             }
         }
 
@@ -104,10 +104,12 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'ansible-ip-1', variable: 'ANSIBLE_IP')]) {
                     sshagent(['ansible-key']) {
-                        sh(script: '''ssh -o StrictHostKeyChecking=no -tt ec2-user="$ANSIBLE_IP" '
-                            cd /etc/ansible &&
-                            ansible-playbook /opt/docker/docker-container.yml
-                        ' ''')
+                        sh(script: '''
+                            ssh -tt -o StrictHostKeyChecking=no ec2-user@$ANSIBLE_IP '
+                                cd /etc/ansible &&
+                                ansible-playbook /opt/docker/docker-container.yml
+                            '
+                        ''')
                     }
                 }
             }
@@ -115,7 +117,7 @@ pipeline {
 
         stage('Check Stage Website Availability') {
             steps {
-                sh "sleep 90"
+                sh 'sleep 90'
                 script {
                     def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.chijiokedevops.space", returnStdout: true).trim()
                     if (response == "200") {
@@ -136,25 +138,29 @@ pipeline {
         }
 
         stage('Deploy to Prod') {
-    steps {
-        withCredentials([string(credentialsId: 'ansible-ip-1', variable: 'ANSIBLE_IP')]) {
-            sshagent(['ansible-key']) {
-                sh(script: '''
-                    ssh -tt -o StrictHostKeyChecking=no ec2-user="$ANSIBLE_IP" '
-                        cd /etc/ansible &&
-                        ansible-playbook /opt/docker/docker-container.yml &&
-                        ansible-playbook /opt/docker/newrelic-container.yml
-                    '
-                ''')
+            steps {
+                withCredentials([string(credentialsId: 'ansible-ip-1', variable: 'ANSIBLE_IP')]) {
+                    sshagent(['ansible-key']) {
+                        sh(script: '''
+                            ssh -tt -o StrictHostKeyChecking=no ec2-user@$ANSIBLE_IP '
+                                cd /etc/ansible &&
+                                ansible-playbook /opt/docker/docker-container.yml
+                            '
+                        ''')
+                        sh(script: '''
+                            ssh -tt -o StrictHostKeyChecking=no ec2-user@$ANSIBLE_IP '
+                                cd /etc/ansible &&
+                                ansible-playbook /opt/docker/newrelic-container.yml
+                            '
+                        ''')
+                    }
+                }
             }
         }
-    }
-}
-
 
         stage('Check Prod Website Availability') {
             steps {
-                sh "sleep 90"
+                sh 'sleep 90'
                 script {
                     def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.chijiokedevops.space", returnStdout: true).trim()
                     if (response == "200") {
@@ -167,3 +173,4 @@ pipeline {
         }
     }
 }
+
