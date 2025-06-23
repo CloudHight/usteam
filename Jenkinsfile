@@ -54,19 +54,20 @@ pipeline {
 
         stage('Push Artifact to Nexus Repo') {
             steps {
-                nexusArtifactUploader artifacts: [[
-                    artifactId: 'spring-petclinic',
-                    classifier: '',
-                    file: 'target/spring-petclinic-2.4.2.war',
-                    type: 'war'
-                ]],
-                credentialsId: 'nexus-cred',
-                groupId: 'Petclinic',
-                nexusUrl: 'nexus.chijiokedevops.space',
-                nexusVersion: 'nexus3',
-                protocol: 'https',
-                repository: 'nexus-repo',
-                version: '1.0'
+                nexusArtifactUploader(
+                    artifacts: [[
+                        artifactId: 'spring-petclinic',
+                        classifier: '',
+                        file: 'target/spring-petclinic-2.4.2.war',
+                        type: 'war'
+                    ]],
+                    credentialsId: 'nexus-cred',
+                    groupId: 'Petclinic',
+                    nexusUrl: 'nexus.chijiokedevops.space',
+                    nexusVersion: 'nexus3',
+                    protocol: 'https',
+                    repository: 'nexus-repo',
+                    version: '1.0'
                 )
             }
         }
