@@ -16,10 +16,10 @@ pipeline {
         terraform 'terraform'
     }
 
-     parameters {
+    parameters {
         choice(name: 'action', choices: ['apply', 'destroy'], description: 'Select the action to perform')
     }
-    
+
     triggers {
         pollSCM('* * * * *')
     }
@@ -49,7 +49,7 @@ pipeline {
 
         stage('Dependency Check') {
             steps {
-                dependencyCheck additionalArguments: "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey=$NVD_API_KEY",
+                dependencyCheck additionalArguments: "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey=${NVD_API_KEY}",
                                 odcInstallation: 'DP-Check'
                 dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
@@ -83,25 +83,25 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $NEXUS_REPO/petclinicapps .'
+                sh 'docker build -t ${NEXUS_REPO}/petclinicapps .'
             }
         }
 
         stage('Login to Nexus Docker Repo') {
             steps {
-                sh 'docker login --username $NEXUS_USER --password $NEXUS_PASSWORD $NEXUS_REPO'
+                sh 'docker login -u ${NEXUS_USER} -p ${NEXUS_PASSWORD} ${NEXUS_REPO}'
             }
         }
 
         stage('Trivy Image Scan') {
             steps {
-                sh 'trivy image -f table $NEXUS_REPO/petclinicapps > trivyfs.txt'
+                sh 'trivy image -f table ${NEXUS_REPO}/petclinicapps > trivyfs.txt'
             }
         }
 
         stage('Push Docker Image to Nexus') {
             steps {
-                sh 'docker push $NEXUS_REPO/petclinicapps'
+                sh 'docker push ${NEXUS_REPO}/petclinicapps'
             }
         }
 
@@ -116,13 +116,12 @@ pipeline {
                 sshagent(['ansible-key']) {
                     sh '''
                         scp -o StrictHostKeyChecking=no \
-                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
-                             deployment.yml ec2-user@$ANSIBLE_IP:/etc/ansible/deployment.yml
-                    '''
-                    sh '''
+                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
+                            ansible/deployment.yml ec2-user@${ANSIBLE_IP}:/etc/ansible/deployment.yml
+
                         ssh -tt -o StrictHostKeyChecking=no \
-                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
-                            ec2-user@$ANSIBLE_IP '
+                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
+                            ec2-user@${ANSIBLE_IP} '
                                 ansible-playbook /etc/ansible/deployment.yml
                             '
                     '''
@@ -135,54 +134,3 @@ pipeline {
                 sh 'sleep 90'
                 script {
                     def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.chijiokedevops.space", returnStdout: true).trim()
-                    if (response == "200") {
-                        slackSend(color: 'good', message: "✅ Stage Petclinic is up (HTTP ${response})", tokenCredentialId: 'slack')
-                    } else {
-                        slackSend(color: 'danger', message: "🚨 Stage Petclinic is down (HTTP ${response})", tokenCredentialId: 'slack')
-                    }
-                }
-            }
-        }
-
-        stage('Request for Approval') {
-            steps {
-                timeout(activity: true, time: 10, unit: 'MINUTES') {
-                    input message: 'Deploy to Production?', submitter: 'admin'
-                }
-            }
-        }
-
-        stage('Deploy to Prod') {
-            steps {
-                sshagent(['ansible-key']) {
-                    sh '''
-                        scp -o StrictHostKeyChecking=no \
-                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
-                            deployment.yml ec2-user@$ANSIBLE_IP:/etc/ansible/deployment.yml
-                    '''
-                    sh '''
-                        ssh -tt -o StrictHostKeyChecking=no \
-                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
-                            ec2-user@$ANSIBLE_IP '
-                                ansible-playbook /etc/ansible/deployment.yml
-                            '
-                    '''
-                }
-            }
-        }
-
-        stage('Check Prod Website Availability') {
-            steps {
-                sh 'sleep 90'
-                script {
-                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.chijiokedevops.space", returnStdout: true).trim()
-                    if (response == "200") {
-                        slackSend(color: 'good', message: "✅ Prod Petclinic is up (HTTP ${response})", tokenCredentialId: 'slack')
-                    } else {
-                        slackSend(color: 'danger', message: "🚨 Prod Petclinic is down (HTTP ${response})", tokenCredentialId: 'slack')
-                    }
-                }
-            }
-        }
-    }
-}
