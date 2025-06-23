@@ -157,7 +157,7 @@ pipeline {
                     sh '''
                         scp -o StrictHostKeyChecking=no \
                             -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
-                            ansible/deployment.yml ec2-user@$ANSIBLE_IP:/etc/ansible/deployment.yml
+                            /etc/ansible/deployment.yml ec2-user@$ANSIBLE_IP:/etc/ansible/deployment.yml
                     '''
                     sh '''
                         ssh -tt -o StrictHostKeyChecking=no \
