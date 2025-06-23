@@ -10,13 +10,15 @@ pipeline {
         BASTION_ID      = credentials('bastion-id')
         AWS_REGION      = 'eu-west-3'
     }
-    
+
     tools {
-        terraform 'terraform' // Make sure this matches the configured tool in Jenkins
+        terraform 'terraform'
     }
+
     triggers {
-        pollSCM('* * * * *') // Polls Git every minute
+        pollSCM('* * * * *')
     }
+
     stages {
         stage('Code Analysis') {
             steps {
@@ -100,17 +102,16 @@ pipeline {
 
         stage('Deploy to Stage') {
             steps {
-       withCredentials([string(credentialsId: 'ansible-ip-1', variable: 'ANSIBLE_IP')]) {
-      sshagent(['ansible-key']) {
-        sh(script: '''
-            ssh -o StrictHostKeyChecking=no -tt ec2-user@$ANSIBLE_IP '
-                cd /etc/ansible &&
-                ansible-playbook /opt/docker/docker-container.yml
-            '
-        ''')
-    }
-}
-
+                withCredentials([string(credentialsId: 'ansible-ip-1', variable: 'ANSIBLE_IP')]) {
+                    sshagent(['ansible-key']) {
+                        sh(script: '''ssh -o StrictHostKeyChecking=no -tt ec2-user="$ANSIBLE_IP" '
+                            cd /etc/ansible &&
+                            ansible-playbook /opt/docker/docker-container.yml
+                        ' ''')
+                    }
+                }
+            }
+        }
 
         stage('Check Stage Website Availability') {
             steps {
@@ -135,13 +136,21 @@ pipeline {
         }
 
         stage('Deploy to Prod') {
-            steps {
-                sshagent(['ansible-key']) {
-                    sh "ssh -t -t ec2-user@$ANSIBLE_IP -o StrictHostKeyChecking=no \"cd /etc/ansible && ansible-playbook /opt/docker/docker-container.yml\""
-                    sh "ssh -t -t ec2-user@$ANSIBLE_IP -o StrictHostKeyChecking=no \"cd /etc/ansible && ansible-playbook /opt/docker/newrelic-container.yml\""
-                }
+    steps {
+        withCredentials([string(credentialsId: 'ansible-ip-1', variable: 'ANSIBLE_IP')]) {
+            sshagent(['ansible-key']) {
+                sh(script: '''
+                    ssh -tt -o StrictHostKeyChecking=no ec2-user="$ANSIBLE_IP" '
+                        cd /etc/ansible &&
+                        ansible-playbook /opt/docker/docker-container.yml &&
+                        ansible-playbook /opt/docker/newrelic-container.yml
+                    '
+                ''')
             }
         }
+    }
+}
+
 
         stage('Check Prod Website Availability') {
             steps {
