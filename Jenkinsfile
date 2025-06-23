@@ -2,14 +2,14 @@ pipeline {
     agent any
 
     environment {
-        NEXUS_USER      = credentials('nexus-username')
-        NEXUS_PASSWORD  = credentials('nexus-password')
-        NEXUS_REPO      = credentials('nexus-ip-port')
-        BASTION_IP      = credentials('bastion-ip')
-        ANSIBLE_IP      = credentials('ansible-ip-1')
-        NVD_API_KEY     = credentials('nvd-key')
-        BASTION_ID      = credentials('bastion-id')
-        AWS_REGION      = 'eu-west-3'
+        NEXUS_USER     = credentials('nexus-username')
+        NEXUS_PASSWORD = credentials('nexus-password')
+        NEXUS_REPO     = credentials('nexus-ip-port')
+        BASTION_IP     = credentials('bastion-ip')
+        ANSIBLE_IP     = credentials('ansible-ip-1')
+        NVD_API_KEY    = credentials('nvd-key')
+        BASTION_ID     = credentials('bastion-id')
+        AWS_REGION     = 'eu-west-3'
     }
 
     tools {
@@ -83,48 +83,46 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t ${NEXUS_REPO}/petclinicapps .'
+                sh "docker build -t ${NEXUS_REPO}/petclinicapps ."
             }
         }
 
         stage('Login to Nexus Docker Repo') {
             steps {
-                sh 'docker login -u ${NEXUS_USER} -p ${NEXUS_PASSWORD} ${NEXUS_REPO}'
+                sh "docker login -u ${NEXUS_USER} -p ${NEXUS_PASSWORD} ${NEXUS_REPO}"
             }
         }
 
         stage('Trivy Image Scan') {
             steps {
-                sh 'trivy image -f table ${NEXUS_REPO}/petclinicapps > trivyfs.txt'
+                sh "trivy image -f table ${NEXUS_REPO}/petclinicapps > trivyfs.txt"
             }
         }
 
         stage('Push Docker Image to Nexus') {
             steps {
-                sh 'docker push ${NEXUS_REPO}/petclinicapps'
+                sh "docker push ${NEXUS_REPO}/petclinicapps"
             }
         }
 
         stage('Prune Docker Images') {
             steps {
-                sh 'docker image prune -f'
+                sh "docker image prune -f"
             }
         }
 
         stage('Deploy to Stage') {
             steps {
                 sshagent(['ansible-key']) {
-                    sh '''
+                    sh """
                         scp -o StrictHostKeyChecking=no \
                             -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
                             ansible/deployment.yml ec2-user@${ANSIBLE_IP}:/etc/ansible/deployment.yml
 
                         ssh -tt -o StrictHostKeyChecking=no \
                             -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
-                            ec2-user@${ANSIBLE_IP} '
-                                ansible-playbook /etc/ansible/deployment.yml
-                            '
-                    '''
+                            ec2-user@${ANSIBLE_IP} 'ansible-playbook /etc/ansible/deployment.yml'
+                    """
                 }
             }
         }
@@ -133,4 +131,17 @@ pipeline {
             steps {
                 sh 'sleep 90'
                 script {
-                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.chijiokedevops.space", returnStdout: true).trim()
+                    def response = sh(
+                        script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.chijiokedevops.space",
+                        returnStdout: true
+                    ).trim()
+                    if (response == "200") {
+                        slackSend(color: 'good', message: "✅ Stage Petclinic is up (HTTP ${response})", tokenCredentialId: 'slack')
+                    } else {
+                        slackSend(color: 'danger', message: "🚨 Stage Petclinic is down (HTTP ${response})", tokenCredentialId: 'slack')
+                    }
+                }
+            }
+        }
+    }
+}
