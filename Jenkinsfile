@@ -16,6 +16,10 @@ pipeline {
         terraform 'terraform'
     }
 
+     parameters {
+        choice(name: 'action', choices: ['apply', 'destroy'], description: 'Select the action to perform')
+    }
+    
     triggers {
         pollSCM('* * * * *')
     }
