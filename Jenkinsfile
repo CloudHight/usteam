@@ -10,6 +10,10 @@ pipeline {
         BASTION_ID      = credentials('bastion-id')
         AWS_REGION      = 'eu-west-3'
     }
+    
+    tools {
+        terraform 'terraform' // Make sure this matches the configured tool in Jenkins
+    }
     triggers {
         pollSCM('* * * * *') // Polls Git every minute
     }
