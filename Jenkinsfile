@@ -100,12 +100,17 @@ pipeline {
 
         stage('Deploy to Stage') {
             steps {
-                sshagent(['ansible-key']) {
-                    sh "ssh -t -t ec2-user@$ANSIBLE_IP -o StrictHostKeyChecking=no \"cd /etc/ansible && ansible-playbook /opt/docker/docker-container.yml\""
-                    sh "ssh -t -t ec2-user@$ANSIBLE_IP -o StrictHostKeyChecking=no \"cd /etc/ansible && ansible-playbook /opt/docker/newrelic-container.yml\""
-                }
-            }
-        }
+       withCredentials([string(credentialsId: 'ansible-ip-1', variable: 'ANSIBLE_IP')]) {
+      sshagent(['ansible-key']) {
+        sh(script: '''
+            ssh -o StrictHostKeyChecking=no -tt ec2-user@$ANSIBLE_IP '
+                cd /etc/ansible &&
+                ansible-playbook /opt/docker/docker-container.yml
+            '
+        ''')
+    }
+}
+
 
         stage('Check Stage Website Availability') {
             steps {
