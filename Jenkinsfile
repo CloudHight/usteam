@@ -4,7 +4,7 @@ pipeline {
     environment {
         NEXUS_USER     = credentials('nexus-username')
         NEXUS_PASSWORD = credentials('nexus-password')
-        NEXUS_REPO     = credentials('nexus-ip-port')
+        NEXUS_REPO     = credentials('nexus-port-ip')
         BASTION_IP     = credentials('bastion-ip')
         ANSIBLE_IP     = credentials('ansible-ip-1')
         NVD_API_KEY    = credentials('nvd-key')
