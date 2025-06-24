@@ -6,7 +6,7 @@ pipeline {
         NEXUS_PASSWORD = credentials('nexus-password')
         NEXUS_REPO     = credentials('nexus-port-ip')
         BASTION_IP     = credentials('bastion-ip')
-        ANSIBLE_IP     = credentials('ansible-ip-1')
+        ANSIBLE_IP     = credentials('ansible-ip')
         NVD_API_KEY    = credentials('nvd-key')
         BASTION_ID     = credentials('bastion-id')
         AWS_REGION     = 'eu-west-3'
