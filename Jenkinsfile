@@ -49,14 +49,12 @@ pipeline {
 
         stage('Dependency Check') {
             steps {
-                withCredentials([string(credentialsId: 'nvd-key', variable: 'NVD_API_KEY')]) {
-                    script {
-                        def args = "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey=" + NVD_API_KEY
-                        dependencyCheck(
-                            additionalArguments: args,
-                            odcInstallation: 'DP-Check'
-                        )
-                    }
+                script {
+                    def args = "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey=${NVD_API_KEY}"
+                    dependencyCheck(
+                        additionalArguments: args,
+                        odcInstallation: 'DP-Check'
+                    )
                 }
                 dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
@@ -102,7 +100,7 @@ pipeline {
 
         stage('Trivy Image Scan') {
             steps {
-                sh "trivy image -f table ${NEXUS_REPO}/petclinicapps > trivyfs.txt"
+                sh "trivy image --format table ${NEXUS_REPO}/petclinicapps > trivyfs.txt"
             }
         }
 
@@ -122,12 +120,12 @@ pipeline {
             steps {
                 sshagent(['ansible-key']) {
                     sh """
-                        scp -o StrictHostKeyChecking=no \
-                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
+                        scp -o StrictHostKeyChecking=no \\
+                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \\
                             deployment.yml ec2-user@${ANSIBLE_IP}:/etc/ansible/deployment.yml
 
-                        ssh -tt -o StrictHostKeyChecking=no \
-                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
+                        ssh -tt -o StrictHostKeyChecking=no \\
+                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \\
                             ec2-user@${ANSIBLE_IP} 'ansible-playbook /etc/ansible/deployment.yml'
                     """
                 }
@@ -143,9 +141,9 @@ pipeline {
                         returnStdout: true
                     ).trim()
                     if (response == "200") {
-                        slackSend(color: 'good', message: "✅ Stage Petclinic is up (HTTP ${response})", tokenCredentialId: 'slack')
+                        slackSend(color: 'good', message: "✅ Stage Petclinic is up (HTTP ${response})")
                     } else {
-                        slackSend(color: 'danger', message: "🚨 Stage Petclinic is down (HTTP ${response})", tokenCredentialId: 'slack')
+                        slackSend(color: 'danger', message: "🚨 Stage Petclinic is down (HTTP ${response})")
                     }
                 }
             }
@@ -163,12 +161,12 @@ pipeline {
             steps {
                 sshagent(['ansible-key']) {
                     sh """
-                        scp -o StrictHostKeyChecking=no \
-                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
+                        scp -o StrictHostKeyChecking=no \\
+                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \\
                             deployment.yml ec2-user@${ANSIBLE_IP}:/etc/ansible/prod-deployment.yml
 
-                        ssh -tt -o StrictHostKeyChecking=no \
-                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
+                        ssh -tt -o StrictHostKeyChecking=no \\
+                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \\
                             ec2-user@${ANSIBLE_IP} 'ansible-playbook /etc/ansible/prod-deployment.yml'
                     """
                 }
@@ -184,13 +182,12 @@ pipeline {
                         returnStdout: true
                     ).trim()
                     if (response == "200") {
-                        slackSend(color: 'good', message: "✅ Prod Petclinic is up (HTTP ${response})", tokenCredentialId: 'slack')
+                        slackSend(color: 'good', message: "✅ Prod Petclinic is up (HTTP ${response})")
                     } else {
-                        slackSend(color: 'danger', message: "🚨 Prod Petclinic is down (HTTP ${response})", tokenCredentialId: 'slack')
+                        slackSend(color: 'danger', message: "🚨 Prod Petclinic is down (HTTP ${response})")
                     }
                 }
             }
         }
     }
 }
-
