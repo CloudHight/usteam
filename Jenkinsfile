@@ -50,13 +50,17 @@ pipeline {
         stage('Dependency Check') {
             steps {
                 withCredentials([string(credentialsId: 'nvd-key', variable: 'NVD_API_KEY')]) {
-                    dependencyCheck additionalArguments: "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey=$NVD_API_KEY",
-                                    odcInstallation: 'DP-Check'
+                    script {
+                        def args = "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey=${NVD_API_KEY}"
+                        dependencyCheck(
+                            additionalArguments: args,
+                            odcInstallation: 'DP-Check'
+                        )
+                    }
                 }
                 dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
         }
-
 
         stage('Build Artifact') {
             steps {
