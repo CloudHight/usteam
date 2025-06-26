@@ -132,15 +132,15 @@ pipeline {
 
                         ssh -o StrictHostKeyChecking=no \
                             -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
-                            ec2-user@${ANSIBLE_IP} 'mkdir -p /etc/ansible'
+                            ec2-user@${ANSIBLE_IP} 'mkdir -p /home/ec2-user/ansible'
 
                         scp -o StrictHostKeyChecking=no \
                             -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
-                            deployment.yml ec2-user@${ANSIBLE_IP}:/etc/ansible/deployment.yml
+                            deployment.yml ec2-user@${ANSIBLE_IP}:/home/ec2-user/ansible/deployment.yml
 
                         ssh -tt -o StrictHostKeyChecking=no \
                             -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
-                            ec2-user@${ANSIBLE_IP} 'ansible-playbook /etc/ansible/deployment.yml'
+                            ec2-user@${ANSIBLE_IP} 'ansible-playbook /home/ec2-user/ansible/deployment.yml'
                     '''
                 }
             }
@@ -176,15 +176,15 @@ pipeline {
 
                         ssh -o StrictHostKeyChecking=no \
                             -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
-                            ec2-user@${ANSIBLE_IP} 'mkdir -p /etc/ansible'
+                            ec2-user@${ANSIBLE_IP} 'mkdir -p /home/ec2-user/ansible'
 
                         scp -o StrictHostKeyChecking=no \
                             -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
-                            deployment.yml ec2-user@${ANSIBLE_IP}:/etc/ansible/prod-deployment.yml
+                            deployment.yml ec2-user@${ANSIBLE_IP}:/home/ec2-user/ansible/prod-deployment.yml
 
                         ssh -tt -o StrictHostKeyChecking=no \
                             -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
-                            ec2-user@${ANSIBLE_IP} 'ansible-playbook /etc/ansible/prod-deployment.yml'
+                            ec2-user@${ANSIBLE_IP} 'ansible-playbook /home/ec2-user/ansible/prod-deployment.yml'
                     '''
                 }
             }
