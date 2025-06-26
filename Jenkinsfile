@@ -25,7 +25,6 @@ pipeline {
     }
 
     stages {
-
         stage('Checkout Code') {
             steps {
                 checkout scm
@@ -50,14 +49,12 @@ pipeline {
 
         stage('Dependency Check') {
             steps {
-                withCredentials([string(credentialsId: 'nvd-key', variable: 'NVD_API_KEY')]) {
-                    script {
-                        def args = "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey=" + NVD_API_KEY
-                        dependencyCheck(
-                            additionalArguments: args,
-                            odcInstallation: 'DP-Check'
-                        )
-                    }
+                script {
+                    def args = "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey=${NVD_API_KEY}"
+                    dependencyCheck(
+                        additionalArguments: args,
+                        odcInstallation: 'DP-Check'
+                    )
                 }
                 dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
@@ -91,38 +88,52 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh "docker build -t ${NEXUS_REPO}/petclinicapps ."
+                sh '''
+                    docker build -t ${NEXUS_REPO}/petclinicapps .
+                '''
             }
         }
 
         stage('Login to Nexus Docker Repo') {
             steps {
-                sh "docker login -u ${NEXUS_USER} -p ${NEXUS_PASSWORD} ${NEXUS_REPO}"
+                sh '''
+                    docker login -u ${NEXUS_USER} -p ${NEXUS_PASSWORD} ${NEXUS_REPO}
+                '''
             }
         }
 
         stage('Trivy Image Scan') {
             steps {
-                sh "trivy image -f table ${NEXUS_REPO}/petclinicapps > trivyfs.txt"
+                sh '''
+                    trivy image -f table ${NEXUS_REPO}/petclinicapps > trivyfs.txt
+                '''
             }
         }
 
         stage('Push Docker Image to Nexus') {
             steps {
-                sh "docker push ${NEXUS_REPO}/petclinicapps"
+                sh '''
+                    docker push ${NEXUS_REPO}/petclinicapps
+                '''
             }
         }
 
         stage('Prune Docker Images') {
             steps {
-                sh "docker image prune -f"
+                sh 'docker image prune -f'
             }
         }
 
         stage('Deploy to Stage') {
             steps {
                 sshagent(['ansible-key']) {
-                    sh """
+                    sh '''
+                        echo "Creating directory and transferring deployment.yml to staging host..."
+
+                        ssh -o StrictHostKeyChecking=no \
+                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
+                            ec2-user@${ANSIBLE_IP} 'mkdir -p /etc/ansible'
+
                         scp -o StrictHostKeyChecking=no \
                             -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
                             deployment.yml ec2-user@${ANSIBLE_IP}:/etc/ansible/deployment.yml
@@ -130,7 +141,7 @@ pipeline {
                         ssh -tt -o StrictHostKeyChecking=no \
                             -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
                             ec2-user@${ANSIBLE_IP} 'ansible-playbook /etc/ansible/deployment.yml'
-                    """
+                    '''
                 }
             }
         }
@@ -160,7 +171,13 @@ pipeline {
         stage('Deploy to Prod') {
             steps {
                 sshagent(['ansible-key']) {
-                    sh """
+                    sh '''
+                        echo "Creating directory and transferring prod-deployment.yml..."
+
+                        ssh -o StrictHostKeyChecking=no \
+                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
+                            ec2-user@${ANSIBLE_IP} 'mkdir -p /etc/ansible'
+
                         scp -o StrictHostKeyChecking=no \
                             -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
                             deployment.yml ec2-user@${ANSIBLE_IP}:/etc/ansible/prod-deployment.yml
@@ -168,7 +185,7 @@ pipeline {
                         ssh -tt -o StrictHostKeyChecking=no \
                             -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
                             ec2-user@${ANSIBLE_IP} 'ansible-playbook /etc/ansible/prod-deployment.yml'
-                    """
+                    '''
                 }
             }
         }
@@ -197,3 +214,4 @@ pipeline {
         }
     }
 }
+
