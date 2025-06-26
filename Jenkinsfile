@@ -121,20 +121,30 @@ pipeline {
         }
 
         stage('Deploy to Stage') {
-            steps {
-                sshagent(['ansible-key']) {
-                    sh """
-                        scp -o StrictHostKeyChecking=no \
-                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
-                            deployment.yml ec2-user@${ANSIBLE_IP}:/etc/ansible/deployment.yml
+    steps {
+        sshagent(['ansible-key']) {
+            sh """
+                echo 'Creating ansible dir on remote and transferring deployment file...'
+                ssh -o StrictHostKeyChecking=no \
+                    -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
+                    ec2-user@${ANSIBLE_IP} 'mkdir -p /home/ec2-user/ansible'
 
-                        ssh -tt -o StrictHostKeyChecking=no \
-                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
-                            ec2-user@${ANSIBLE_IP} 'ansible-playbook /etc/ansible/deployment.yml'
-                    """
-                }
-            }
+                scp -o StrictHostKeyChecking=no \
+                    -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
+                    deployment.yml ec2-user@${ANSIBLE_IP}:/home/ec2-user/ansible/deployment.yml
+
+                ssh -tt -o StrictHostKeyChecking=no \
+                    -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
+                    ec2-user@${ANSIBLE_IP} 'sudo mkdir -p /etc/ansible && sudo mv /home/ec2-user/ansible/deployment.yml /etc/ansible/deployment.yml'
+
+                ssh -tt -o StrictHostKeyChecking=no \
+                    -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
+                    ec2-user@${ANSIBLE_IP} 'ansible-playbook /etc/ansible/deployment.yml'
+            """
         }
+    }
+}
+
 
         stage('Check Stage Website Availability') {
             steps {
@@ -158,21 +168,31 @@ pipeline {
             }
         }
 
-        stage('Deploy to Prod') {
-            steps {
-                sshagent(['ansible-key']) {
-                    sh """
-                        scp -o StrictHostKeyChecking=no \
-                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
-                            deployment.yml ec2-user@${ANSIBLE_IP}:/etc/ansible/prod-deployment.yml
+       stage('Deploy to prod') {
+    steps {
+        sshagent(['ansible-key']) {
+            sh """
+                echo 'Creating ansible dir on remote and transferring deployment file...'
+                ssh -o StrictHostKeyChecking=no \
+                    -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
+                    ec2-user@${ANSIBLE_IP} 'mkdir -p /home/ec2-user/ansible'
 
-                        ssh -tt -o StrictHostKeyChecking=no \
-                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
-                            ec2-user@${ANSIBLE_IP} 'ansible-playbook /etc/ansible/prod-deployment.yml'
-                    """
-                }
-            }
+                scp -o StrictHostKeyChecking=no \
+                    -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
+                    deployment.yml ec2-user@${ANSIBLE_IP}:/home/ec2-user/ansible/deployment.yml
+
+                ssh -tt -o StrictHostKeyChecking=no \
+                    -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
+                    ec2-user@${ANSIBLE_IP} 'sudo mkdir -p /etc/ansible && sudo mv /home/ec2-user/ansible/deployment.yml /etc/ansible/deployment.yml'
+
+                ssh -tt -o StrictHostKeyChecking=no \
+                    -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@${BASTION_IP}" \
+                    ec2-user@${ANSIBLE_IP} 'ansible-playbook /etc/ansible/deployment.yml'
+            """
         }
+    }
+}
+
 
         stage('Check Prod Website Availability') {
             steps {
