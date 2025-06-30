@@ -9,13 +9,10 @@ pipeline {
         BASTION_IP       = credentials('bastion-ip')
         ANSIBLE_IP       = credentials('ansible-ip')
         BASTION_ID       = credentials('bastion-id')
-        PROD_BASTION_IP  = credentials('prod-bastion-ip')
-        PROD_ANSIBLE_IP  = credentials('prod-ansible-ip')
         AWS_REGION       = 'eu-west-3'
     }
 
     tools {
-        git 'Default'              // Make sure 'Default' is configured in Jenkins with /usr/bin/git
         terraform 'terraform'
     }
 
