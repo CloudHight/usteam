@@ -7,8 +7,8 @@ pipeline {
         NEXUS_REPO = credentials('nexus-ip-port')
         BASTION_IP = credentials('bastion-ip')
         ANSIBLE_IP = credentials('ansible-ip')
-        NEXUS_PASSWORD = creditials ('nexus-password')
-        NEXUS_USERNAME = creditials ('nexus-username')
+        NEXUS_PASSWORD = credentials('nexus-password')
+        NEXUS_USERNAME = credentials('nexus-username')
     }
 
     tools {
@@ -124,7 +124,6 @@ pipeline {
                 sshagent(['ansible-key']) {
                     sh '''
                         set -e
-                        echo 'Creating ansible dir on remote and transferring deployment file...'
                         ssh -o StrictHostKeyChecking=no \
                             -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
                             ec2-user@$ANSIBLE_IP 'mkdir -p /home/ec2-user/ansible'
@@ -156,3 +155,46 @@ pipeline {
                         slackSend(color: 'danger', message: "🚨 Stage Petclinic is down (HTTP ${response})", tokenCredentialId: 'slack')
                     }
                 }
+            }
+        }
+
+        stage('Deploy to Prod') {
+            steps {
+                sshagent(['ansible-key']) {
+                    sh '''
+                        set -e
+                        ssh -o StrictHostKeyChecking=no \
+                            -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$PROD_BASTION_IP" \
+                            ec2-user@$PROD_ANSIBLE_IP 'mkdir -p /home/ec2-user/ansible'
+
+                        scp -o StrictHostKeyChecking=no \
+                            -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$PROD_BASTION_IP" \
+                            deployment.yml ec2-user@$PROD_ANSIBLE_IP:/home/ec2-user/ansible/deployment.yml
+
+                        ssh -tt -o StrictHostKeyChecking=no \
+                            -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$PROD_BASTION_IP" \
+                            ec2-user@$PROD_ANSIBLE_IP 'sudo mkdir -p /etc/ansible && sudo mv /home/ec2-user/ansible/deployment.yml /etc/ansible/deployment.yml'
+
+                        ssh -tt -o StrictHostKeyChecking=no \
+                            -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$PROD_BASTION_IP" \
+                            ec2-user@$PROD_ANSIBLE_IP 'ansible-playbook /etc/ansible/deployment.yml'
+                    '''
+                }
+            }
+        }
+
+        stage('Check Prod Website Availability') {
+            steps {
+                sh 'sleep 90'
+                script {
+                    def response = sh(script: 'curl -s -o /dev/null -w "%{http_code}" https://prod.chijiokedevops.space', returnStdout: true).trim()
+                    if (response == "200") {
+                        slackSend(color: 'good', message: "✅ Prod Petclinic is up (HTTP ${response})", tokenCredentialId: 'slack')
+                    } else {
+                        slackSend(color: 'danger', message: "🚨 Prod Petclinic is down (HTTP ${response})", tokenCredentialId: 'slack')
+                    }
+                }
+            }
+        }
+    }
+}
