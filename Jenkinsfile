@@ -18,7 +18,6 @@ pipeline {
     }
 
     stages {
-
         stage('Checkout Code') {
             steps {
                 checkout scm
@@ -226,4 +225,10 @@ pipeline {
 
     post {
         success {
-            slackSend(color: 'good',
+            slackSend(color: 'good', message: '✅ Jenkins pipeline completed successfully!', tokenCredentialId: 'slack')
+        }
+        failure {
+            slackSend(color: 'danger', message: '❌ Jenkins pipeline failed.', tokenCredentialId: 'slack')
+        }
+    }
+}
