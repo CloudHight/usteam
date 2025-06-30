@@ -2,18 +2,18 @@ pipeline {
     agent any
 
     environment {
-    NEXUS_REPO       = credentials('nexus-ip-port')
-    NEXUS_USER       = credentials('nexus-username')
-    NEXUS_PASSWORD   = credentials('nexus-password')
-    NVD_API_KEY      = credentials('nvd-key')
-    BASTION_IP       = credentials('bastion-ip')
-    ANSIBLE_IP       = credentials('ansible-ip')
-    BASTION_ID       = credentials('bastion-id')
-    AWS_REGION       = 'eu-west-3'
+        NEXUS_REPO       = credentials('nexus-ip-port')
+        NEXUS_USER       = credentials('nexus-username')
+        NEXUS_PASSWORD   = credentials('nexus-password')
+        NVD_API_KEY      = credentials('nvd-key')
+        BASTION_IP       = credentials('bastion-ip')
+        ANSIBLE_IP       = credentials('ansible-ip')
+        BASTION_ID       = credentials('bastion-id')
+        AWS_REGION       = 'eu-west-3'
     }
 
     tools {
-        terraform 'terraform'
+        terraform 'terraform' // Git removed as it's not a valid tool type here
     }
 
     parameters {
@@ -25,9 +25,10 @@ pipeline {
     }
 
     stages {
+
         stage('Checkout Code') {
             steps {
-                checkout scm
+                checkout scm // Git will work if installed globally
             }
         }
 
@@ -88,25 +89,33 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $NEXUS_REPO/petclinicapps:latest .'
+                sh '''
+                    docker build -t $NEXUS_REPO/petclinicapps:latest .
+                '''
             }
         }
 
         stage('Login to Nexus Docker Repo') {
             steps {
-                sh 'echo "$NEXUS_PASSWORD" | docker login --username "$NEXUS_USER" --password-stdin https://$NEXUS_REPO'
+                sh '''
+                    echo "$NEXUS_PASSWORD" | docker login --username "$NEXUS_USER" --password-stdin https://$NEXUS_REPO
+                '''
             }
         }
 
         stage('Trivy Image Scan') {
             steps {
-                sh 'trivy image -f table $NEXUS_REPO/petclinicapps:latest > trivyfs.txt'
+                sh '''
+                    trivy image -f table $NEXUS_REPO/petclinicapps:latest > trivyfs.txt
+                '''
             }
         }
 
         stage('Push Docker Image to Nexus') {
             steps {
-                sh 'docker push $NEXUS_REPO/petclinicapps:latest'
+                sh '''
+                    docker push $NEXUS_REPO/petclinicapps:latest
+                '''
             }
         }
 
@@ -120,7 +129,6 @@ pipeline {
             steps {
                 sshagent(['ansible-key']) {
                     sh '''
-                        set -e
                         ssh -o StrictHostKeyChecking=no \
                             -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
                             ec2-user@$ANSIBLE_IP 'mkdir -p /home/ec2-user/ansible'
@@ -155,7 +163,6 @@ pipeline {
             steps {
                 sshagent(['ansible-key']) {
                     sh '''
-                        set -e
                         ssh -o StrictHostKeyChecking=no \
                             -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$PROD_BASTION_IP" \
                             ec2-user@$PROD_ANSIBLE_IP 'mkdir -p /home/ec2-user/ansible'
