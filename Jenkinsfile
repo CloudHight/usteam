@@ -9,12 +9,13 @@ pipeline {
         BASTION_IP       = credentials('bastion-ip')
         ANSIBLE_IP       = credentials('ansible-ip')
         BASTION_ID       = credentials('bastion-id')
+        PROD_BASTION_IP  = credentials('prod-bastion-ip')
+        PROD_ANSIBLE_IP  = credentials('prod-ansible-ip')
         AWS_REGION       = 'eu-west-3'
     }
 
     tools {
-        git 'git'
-        terraform 'terraform'
+        terraform 'terraform'  // git removed here, since it's not a tool in this context
     }
 
     parameters {
@@ -89,33 +90,25 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh '''
-                    docker build -t $NEXUS_REPO/petclinicapps:latest .
-                '''
+                sh 'docker build -t $NEXUS_REPO/petclinicapps:latest .'
             }
         }
 
         stage('Login to Nexus Docker Repo') {
             steps {
-                sh '''
-                    echo "$NEXUS_PASSWORD" | docker login --username "$NEXUS_USER" --password-stdin https://$NEXUS_REPO
-                '''
+                sh 'echo "$NEXUS_PASSWORD" | docker login --username "$NEXUS_USER" --password-stdin https://$NEXUS_REPO'
             }
         }
 
         stage('Trivy Image Scan') {
             steps {
-                sh '''
-                    trivy image -f table $NEXUS_REPO/petclinicapps:latest > trivyfs.txt
-                '''
+                sh 'trivy image -f table $NEXUS_REPO/petclinicapps:latest > trivyfs.txt'
             }
         }
 
         stage('Push Docker Image to Nexus') {
             steps {
-                sh '''
-                    docker push $NEXUS_REPO/petclinicapps:latest
-                '''
+                sh 'docker push $NEXUS_REPO/petclinicapps:latest'
             }
         }
 
