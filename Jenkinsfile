@@ -9,11 +9,13 @@ pipeline {
         BASTION_IP       = credentials('bastion-ip')
         ANSIBLE_IP       = credentials('ansible-ip')
         BASTION_ID       = credentials('bastion-id')
+        PROD_BASTION_IP  = credentials('prod-bastion-ip')
+        PROD_ANSIBLE_IP  = credentials('prod-ansible-ip')
         AWS_REGION       = 'eu-west-3'
     }
 
     tools {
-        git 'Default'            // Ensure 'Default' is the Git tool name in Jenkins
+        git 'Default'              // Make sure 'Default' is configured in Jenkins with /usr/bin/git
         terraform 'terraform'
     }
 
@@ -27,8 +29,12 @@ pipeline {
 
     stages {
 
-        stage('Checkout Code') {
+        stage('Initialize Git Tool & Checkout Code') {
             steps {
+                script {
+                    def gitToolPath = tool name: 'Default', type: 'git'
+                    env.PATH = "${gitToolPath}:${env.PATH}"
+                }
                 git credentialsId: 'git-cred', url: 'https://github.com/Chijiokeproject/jenkinsfile1.git', branch: 'main'
             }
         }
