@@ -2,13 +2,14 @@ pipeline {
     agent any
 
     environment {
-        AWS_REGION = 'eu-west-3'
-        NVD_API_KEY = credentials('nvd-key')
-        NEXUS_REPO = credentials('nexus-ip-port')
-        BASTION_IP = credentials('bastion-ip')
-        ANSIBLE_IP = credentials('ansible-ip')
+        NEXUS_REPO     = credentials ('nexsu-ip-port')
+        NEXUS_USER     = credentials('nexus-username')
         NEXUS_PASSWORD = credentials('nexus-password')
-        NEXUS_USERNAME = credentials('nexus-username')
+        BASTION_IP     = credentials('bastion-ip')
+        ANSIBLE_IP     = credentials('ansible-ip')
+        NVD_API_KEY    = credentials('nvd-key')
+        BASTION_ID     = credentials('bastion-id')
+        AWS_REGION     = 'eu-west-3'
     }
 
     tools {
