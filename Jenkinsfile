@@ -13,6 +13,7 @@ pipeline {
     }
 
     tools {
+        git 'git'
         terraform 'terraform'
     }
 
