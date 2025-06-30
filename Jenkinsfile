@@ -13,7 +13,7 @@ pipeline {
     }
 
     tools {
-        terraform 'terraform'  // git removed here, since it's not a tool in this context
+        terraform 'terraform'
     }
 
     parameters {
