@@ -5,9 +5,10 @@ pipeline {
         AWS_REGION = 'eu-west-3'
         NVD_API_KEY = credentials('nvd-key')
         NEXUS_REPO = credentials('nexus-ip-port')
-        NEXUS_CREDENTIALS = credentials('nexus-cred')
         BASTION_IP = credentials('bastion-ip')
         ANSIBLE_IP = credentials('ansible-ip')
+        NEXUS_PASSWORD = creditials ('nexus-password')
+        NEXUS_USERNAME = creditials ('nexus-username')
     }
 
     tools {
@@ -31,7 +32,7 @@ pipeline {
 
         stage('Code Analysis') {
             steps {
-                withSonarQubeEnv(env.SONARQUBE) {
+                withSonarQubeEnv("${SONARQUBE}") {
                     sh 'mvn sonar:sonar'
                 }
             }
@@ -73,7 +74,7 @@ pipeline {
                         file: 'target/spring-petclinic-2.4.2.war',
                         type: 'war'
                     ]],
-                    credentialsId: env.NEXUS_CREDENTIALS,
+                    credentialsId: 'nexus-cred',
                     groupId: 'Petclinic',
                     nexusUrl: 'nexus.chijiokedevops.space',
                     nexusVersion: 'nexus3',
@@ -148,4 +149,10 @@ pipeline {
             steps {
                 sh 'sleep 90'
                 script {
-                    def response = sh(script: 'curl -s -o /dev/null -w "%{http_code}" https://stage.chijiokedevops.space', returnStdo
+                    def response = sh(script: 'curl -s -o /dev/null -w "%{http_code}" https://stage.chijiokedevops.space', returnStdout: true).trim()
+                    if (response == "200") {
+                        slackSend(color: 'good', message: "✅ Stage Petclinic is up (HTTP ${response})", tokenCredentialId: 'slack')
+                    } else {
+                        slackSend(color: 'danger', message: "🚨 Stage Petclinic is down (HTTP ${response})", tokenCredentialId: 'slack')
+                    }
+                }
