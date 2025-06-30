@@ -97,7 +97,7 @@ pipeline {
                     string(credentialsId: 'nexus-ip-port', variable: 'NEXUS_REPO')
                 ]) {
                     sh '''
-                        echo "$NEXUS_PASSWORD" | docker login --username "$NEXUS_USER" --password-stdin http://$NEXUS_REPO
+                        echo "$NEXUS_PASSWORD" | docker login --username "$NEXUS_USER" --password-stdin https://$NEXUS_REPO
                     '''
                 }
             }
@@ -133,6 +133,7 @@ pipeline {
                         string(credentialsId: 'ansible-ip', variable: 'ANSIBLE_IP')
                     ]) {
                         sh '''
+                            set -e
                             echo 'Creating ansible dir on remote and transferring deployment file...'
                             ssh -o StrictHostKeyChecking=no \
                                 -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
@@ -185,6 +186,7 @@ pipeline {
                         string(credentialsId: 'ansible-ip', variable: 'ANSIBLE_IP')
                     ]) {
                         sh '''
+                            set -e
                             echo 'Creating ansible dir on remote and transferring deployment file...'
                             ssh -o StrictHostKeyChecking=no \
                                 -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
@@ -224,11 +226,4 @@ pipeline {
 
     post {
         success {
-            slackSend(color: 'good', message: "🎉 Pipeline completed successfully!", tokenCredentialId: 'slack')
-        }
-        failure {
-            slackSend(color: 'danger', message: "❌ Pipeline failed. Check Jenkins logs for details.", tokenCredentialId: 'slack')
-        }
-    }
-}
-
+            slackSend(color: 'good',
