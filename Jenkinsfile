@@ -134,20 +134,21 @@ pipeline {
                         sh '''
                             set -e
                             echo 'Creating ansible dir on remote and transferring deployment file...'
+
                             ssh -o StrictHostKeyChecking=no \
-                                -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
+                                -o ProxyCommand="ssh -o StrictHostKeyChecking=no -W %h:%p ec2-user@$BASTION_IP" \
                                 ec2-user@$ANSIBLE_IP 'mkdir -p /home/ec2-user/ansible'
 
                             scp -o StrictHostKeyChecking=no \
-                                -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
+                                -o ProxyCommand="ssh -o StrictHostKeyChecking=no -W %h:%p ec2-user@$BASTION_IP" \
                                 deployment.yml ec2-user@$ANSIBLE_IP:/home/ec2-user/ansible/deployment.yml
 
                             ssh -tt -o StrictHostKeyChecking=no \
-                                -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
+                                -o ProxyCommand="ssh -o StrictHostKeyChecking=no -W %h:%p ec2-user@$BASTION_IP" \
                                 ec2-user@$ANSIBLE_IP 'sudo mkdir -p /etc/ansible && sudo mv /home/ec2-user/ansible/deployment.yml /etc/ansible/deployment.yml'
 
                             ssh -tt -o StrictHostKeyChecking=no \
-                                -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
+                                -o ProxyCommand="ssh -o StrictHostKeyChecking=no -W %h:%p ec2-user@$BASTION_IP" \
                                 ec2-user@$ANSIBLE_IP 'ansible-playbook /etc/ansible/deployment.yml'
                         '''
                     }
@@ -187,20 +188,21 @@ pipeline {
                         sh '''
                             set -e
                             echo 'Creating ansible dir on remote and transferring deployment file...'
+
                             ssh -o StrictHostKeyChecking=no \
-                                -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
+                                -o ProxyCommand="ssh -o StrictHostKeyChecking=no -W %h:%p ec2-user@$BASTION_IP" \
                                 ec2-user@$ANSIBLE_IP 'mkdir -p /home/ec2-user/ansible'
 
                             scp -o StrictHostKeyChecking=no \
-                                -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
+                                -o ProxyCommand="ssh -o StrictHostKeyChecking=no -W %h:%p ec2-user@$BASTION_IP" \
                                 deployment.yml ec2-user@$ANSIBLE_IP:/home/ec2-user/ansible/deployment.yml
 
                             ssh -tt -o StrictHostKeyChecking=no \
-                                -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
+                                -o ProxyCommand="ssh -o StrictHostKeyChecking=no -W %h:%p ec2-user@$BASTION_IP" \
                                 ec2-user@$ANSIBLE_IP 'sudo mkdir -p /etc/ansible && sudo mv /home/ec2-user/ansible/deployment.yml /etc/ansible/deployment.yml'
 
                             ssh -tt -o StrictHostKeyChecking=no \
-                                -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
+                                -o ProxyCommand="ssh -o StrictHostKeyChecking=no -W %h:%p ec2-user@$BASTION_IP" \
                                 ec2-user@$ANSIBLE_IP 'ansible-playbook /etc/ansible/deployment.yml'
                         '''
                     }
