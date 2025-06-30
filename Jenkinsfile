@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        NEXUS_REPO     = credentials ('nexsu-ip-port')
+        NEXUS_REPO     = credentials ('nexus-ip-port')
         NEXUS_USER     = credentials('nexus-username')
         NEXUS_PASSWORD = credentials('nexus-password')
         BASTION_IP     = credentials('bastion-ip')
