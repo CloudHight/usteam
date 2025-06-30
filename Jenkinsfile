@@ -13,7 +13,8 @@ pipeline {
     }
 
     tools {
-        terraform 'terraform' // Git removed as it's not a valid tool type here
+        git 'Default'            // Ensure 'Default' is the Git tool name in Jenkins
+        terraform 'terraform'
     }
 
     parameters {
@@ -28,7 +29,7 @@ pipeline {
 
         stage('Checkout Code') {
             steps {
-                checkout scm // Git will work if installed globally
+                git credentialsId: 'git-cred', url: 'https://github.com/Chijiokeproject/jenkinsfile1.git', branch: 'main'
             }
         }
 
@@ -89,33 +90,25 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh '''
-                    docker build -t $NEXUS_REPO/petclinicapps:latest .
-                '''
+                sh 'docker build -t $NEXUS_REPO/petclinicapps:latest .'
             }
         }
 
         stage('Login to Nexus Docker Repo') {
             steps {
-                sh '''
-                    echo "$NEXUS_PASSWORD" | docker login --username "$NEXUS_USER" --password-stdin https://$NEXUS_REPO
-                '''
+                sh 'echo "$NEXUS_PASSWORD" | docker login --username "$NEXUS_USER" --password-stdin https://$NEXUS_REPO'
             }
         }
 
         stage('Trivy Image Scan') {
             steps {
-                sh '''
-                    trivy image -f table $NEXUS_REPO/petclinicapps:latest > trivyfs.txt
-                '''
+                sh 'trivy image -f table $NEXUS_REPO/petclinicapps:latest > trivyfs.txt'
             }
         }
 
         stage('Push Docker Image to Nexus') {
             steps {
-                sh '''
-                    docker push $NEXUS_REPO/petclinicapps:latest
-                '''
+                sh 'docker push $NEXUS_REPO/petclinicapps:latest'
             }
         }
 
