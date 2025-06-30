@@ -2,13 +2,13 @@ pipeline {
     agent any
 
     environment {
-        NEXUS_REPO     = credentials ('nexus-ip-port')
+        NEXUS_REPO     = credentials('nexus-ip-port')
         NEXUS_USER     = credentials('nexus-username')
         NEXUS_PASSWORD = credentials('nexus-password')
+        NVD_API_KEY    = credentials('nvd-key')
         BASTION_IP     = credentials('bastion-ip')
         ANSIBLE_IP     = credentials('ansible-ip')
-        NVD_API_KEY    = credentials('nvd-key')
-        BASTION_ID     = credentials('bastion-id')
+        BASTION_ID     = credentials('bastion-id')                       
         AWS_REGION     = 'eu-west-3'
     }
 
@@ -94,11 +94,9 @@ pipeline {
 
         stage('Login to Nexus Docker Repo') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'nexus-cred', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASSWORD')]) {
-                    sh '''
-                        echo "$NEXUS_PASSWORD" | docker login --username "$NEXUS_USER" --password-stdin https://$NEXUS_REPO
-                    '''
-                }
+                sh '''
+                    echo "$NEXUS_PASSWORD" | docker login --username "$NEXUS_USER" --password-stdin https://$NEXUS_REPO
+                '''
             }
         }
 
