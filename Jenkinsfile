@@ -8,7 +8,9 @@ pipeline {
         NVD_API_KEY    = credentials('nvd-key')
         BASTION_IP     = credentials('bastion-ip')
         ANSIBLE_IP     = credentials('ansible-ip')
-        BASTION_ID     = credentials('bastion-id')                       
+        BASTION_ID     = credentials('bastion-id')
+        PROD_BASTION_IP  = credentials('prod-bastion-ip')
+        PROD_ANSIBLE_IP  = credentials('prod-ansible-ip')
         AWS_REGION     = 'eu-west-3'
     }
 
@@ -34,7 +36,7 @@ pipeline {
 
         stage('Code Analysis') {
             steps {
-                withSonarQubeEnv("${SONARQUBE}") {
+                withSonarQubeEnv('SonarQube') {
                     sh 'mvn sonar:sonar'
                 }
             }
@@ -95,9 +97,7 @@ pipeline {
 
         stage('Login to Nexus Docker Repo') {
             steps {
-                sh '''
-                    echo "$NEXUS_PASSWORD" | docker login --username "$NEXUS_USER" --password-stdin https://$NEXUS_REPO
-                '''
+                sh 'echo "$NEXUS_PASSWORD" | docker login --username "$NEXUS_USER" --password-stdin https://$NEXUS_REPO'
             }
         }
 
