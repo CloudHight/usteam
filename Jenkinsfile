@@ -2,16 +2,16 @@ pipeline {
     agent any
 
     environment {
-        NEXUS_REPO     = credentials('nexus-ip-port')
-        NEXUS_USER     = credentials('nexus-username')
-        NEXUS_PASSWORD = credentials('nexus-password')
-        NVD_API_KEY    = credentials('nvd-key')
-        BASTION_IP     = credentials('bastion-ip')
-        ANSIBLE_IP     = credentials('ansible-ip')
-        BASTION_ID     = credentials('bastion-id')
+        NEXUS_REPO       = credentials('nexus-ip-port')
+        NEXUS_USER       = credentials('nexus-username')
+        NEXUS_PASSWORD   = credentials('nexus-password')
+        NVD_API_KEY      = credentials('nvd-key')
+        BASTION_IP       = credentials('bastion-ip')
+        ANSIBLE_IP       = credentials('ansible-ip')
+        BASTION_ID       = credentials('bastion-id')
         PROD_BASTION_IP  = credentials('prod-bastion-ip')
         PROD_ANSIBLE_IP  = credentials('prod-ansible-ip')
-        AWS_REGION     = 'eu-west-3'
+        AWS_REGION       = 'eu-west-3'
     }
 
     tools {
@@ -91,25 +91,33 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $NEXUS_REPO/petclinicapps .'
+                sh '''
+                    docker build -t $NEXUS_REPO/petclinicapps:latest .
+                '''
             }
         }
 
         stage('Login to Nexus Docker Repo') {
             steps {
-                sh 'echo "$NEXUS_PASSWORD" | docker login --username "$NEXUS_USER" --password-stdin https://$NEXUS_REPO'
+                sh '''
+                    echo "$NEXUS_PASSWORD" | docker login --username "$NEXUS_USER" --password-stdin https://$NEXUS_REPO
+                '''
             }
         }
 
         stage('Trivy Image Scan') {
             steps {
-                sh 'trivy image -f table $NEXUS_REPO/petclinicapps > trivyfs.txt'
+                sh '''
+                    trivy image -f table $NEXUS_REPO/petclinicapps:latest > trivyfs.txt
+                '''
             }
         }
 
         stage('Push Docker Image to Nexus') {
             steps {
-                sh 'docker push $NEXUS_REPO/petclinicapps'
+                sh '''
+                    docker push $NEXUS_REPO/petclinicapps:latest
+                '''
             }
         }
 
@@ -130,15 +138,11 @@ pipeline {
 
                         scp -o StrictHostKeyChecking=no \
                             -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
-                            deployment.yml ec2-user@$ANSIBLE_IP:/home/ec2-user/ansible/deployment.yml
+                            deployment.yml ec2-user@$ANSIBLE_IP:/home/ec2-user/ansible/
 
                         ssh -tt -o StrictHostKeyChecking=no \
                             -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
-                            ec2-user@$ANSIBLE_IP 'sudo mkdir -p /etc/ansible && sudo mv /home/ec2-user/ansible/deployment.yml /etc/ansible/deployment.yml'
-
-                        ssh -tt -o StrictHostKeyChecking=no \
-                            -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
-                            ec2-user@$ANSIBLE_IP 'ansible-playbook /etc/ansible/deployment.yml'
+                            ec2-user@$ANSIBLE_IP 'sudo mv /home/ec2-user/ansible/deployment.yml /etc/ansible/ && ansible-playbook /etc/ansible/deployment.yml'
                     '''
                 }
             }
@@ -169,15 +173,11 @@ pipeline {
 
                         scp -o StrictHostKeyChecking=no \
                             -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$PROD_BASTION_IP" \
-                            deployment.yml ec2-user@$PROD_ANSIBLE_IP:/home/ec2-user/ansible/deployment.yml
+                            deployment.yml ec2-user@$PROD_ANSIBLE_IP:/home/ec2-user/ansible/
 
                         ssh -tt -o StrictHostKeyChecking=no \
                             -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$PROD_BASTION_IP" \
-                            ec2-user@$PROD_ANSIBLE_IP 'sudo mkdir -p /etc/ansible && sudo mv /home/ec2-user/ansible/deployment.yml /etc/ansible/deployment.yml'
-
-                        ssh -tt -o StrictHostKeyChecking=no \
-                            -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$PROD_BASTION_IP" \
-                            ec2-user@$PROD_ANSIBLE_IP 'ansible-playbook /etc/ansible/deployment.yml'
+                            ec2-user@$PROD_ANSIBLE_IP 'sudo mv /home/ec2-user/ansible/deployment.yml /etc/ansible/ && ansible-playbook /etc/ansible/deployment.yml'
                     '''
                 }
             }
