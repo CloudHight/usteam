@@ -3,6 +3,11 @@ pipeline {
 
     environment {
         AWS_REGION = 'eu-west-3'
+        NVD_API_KEY = credentials('nvd-key')
+        NEXUS_REPO = credentials('nexus-ip-port')
+        NEXUS_CREDENTIALS = credentials('nexus-cred')
+        BASTION_IP = credentials('bastion-ip')
+        ANSIBLE_IP = credentials('ansible-ip')
     }
 
     tools {
@@ -26,7 +31,7 @@ pipeline {
 
         stage('Code Analysis') {
             steps {
-                withSonarQubeEnv('sonarqube') {
+                withSonarQubeEnv(env.SONARQUBE) {
                     sh 'mvn sonar:sonar'
                 }
             }
@@ -42,14 +47,12 @@ pipeline {
 
         stage('Dependency Check') {
             steps {
-                withCredentials([string(credentialsId: 'nvd-key', variable: 'NVD_API_KEY')]) {
-                    script {
-                        def args = "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey=${NVD_API_KEY}"
-                        dependencyCheck(
-                            additionalArguments: args,
-                            odcInstallation: 'DP-Check'
-                        )
-                    }
+                script {
+                    def args = "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey=${env.NVD_API_KEY}"
+                    dependencyCheck(
+                        additionalArguments: args,
+                        odcInstallation: 'DP-Check'
+                    )
                 }
                 dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
@@ -70,7 +73,7 @@ pipeline {
                         file: 'target/spring-petclinic-2.4.2.war',
                         type: 'war'
                     ]],
-                    credentialsId: 'nexus-cred',
+                    credentialsId: env.NEXUS_CREDENTIALS,
                     groupId: 'Petclinic',
                     nexusUrl: 'nexus.chijiokedevops.space',
                     nexusVersion: 'nexus3',
@@ -83,18 +86,13 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                withCredentials([string(credentialsId: 'nexus-ip-port', variable: 'NEXUS_REPO')]) {
-                    sh 'docker build -t $NEXUS_REPO/petclinicapps .'
-                }
+                sh 'docker build -t $NEXUS_REPO/petclinicapps .'
             }
         }
 
         stage('Login to Nexus Docker Repo') {
             steps {
-                withCredentials([
-                    usernamePassword(credentialsId: 'nexus-cred', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASSWORD'),
-                    string(credentialsId: 'nexus-ip-port', variable: 'NEXUS_REPO')
-                ]) {
+                withCredentials([usernamePassword(credentialsId: 'nexus-cred', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASSWORD')]) {
                     sh '''
                         echo "$NEXUS_PASSWORD" | docker login --username "$NEXUS_USER" --password-stdin https://$NEXUS_REPO
                     '''
@@ -104,17 +102,13 @@ pipeline {
 
         stage('Trivy Image Scan') {
             steps {
-                withCredentials([string(credentialsId: 'nexus-ip-port', variable: 'NEXUS_REPO')]) {
-                    sh 'trivy image -f table $NEXUS_REPO/petclinicapps > trivyfs.txt'
-                }
+                sh 'trivy image -f table $NEXUS_REPO/petclinicapps > trivyfs.txt'
             }
         }
 
         stage('Push Docker Image to Nexus') {
             steps {
-                withCredentials([string(credentialsId: 'nexus-ip-port', variable: 'NEXUS_REPO')]) {
-                    sh 'docker push $NEXUS_REPO/petclinicapps'
-                }
+                sh 'docker push $NEXUS_REPO/petclinicapps'
             }
         }
 
@@ -127,31 +121,25 @@ pipeline {
         stage('Deploy to Stage') {
             steps {
                 sshagent(['ansible-key']) {
-                    withCredentials([
-                        string(credentialsId: 'bastion-ip', variable: 'BASTION_IP'),
-                        string(credentialsId: 'ansible-ip', variable: 'ANSIBLE_IP')
-                    ]) {
-                        sh '''
-                            set -e
-                            echo 'Creating ansible dir on remote and transferring deployment file...'
+                    sh '''
+                        set -e
+                        echo 'Creating ansible dir on remote and transferring deployment file...'
+                        ssh -o StrictHostKeyChecking=no \
+                            -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
+                            ec2-user@$ANSIBLE_IP 'mkdir -p /home/ec2-user/ansible'
 
-                            ssh -o StrictHostKeyChecking=no \
-                                -o ProxyCommand="ssh -o StrictHostKeyChecking=no -W %h:%p ec2-user@$BASTION_IP" \
-                                ec2-user@$ANSIBLE_IP 'mkdir -p /home/ec2-user/ansible'
+                        scp -o StrictHostKeyChecking=no \
+                            -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
+                            deployment.yml ec2-user@$ANSIBLE_IP:/home/ec2-user/ansible/deployment.yml
 
-                            scp -o StrictHostKeyChecking=no \
-                                -o ProxyCommand="ssh -o StrictHostKeyChecking=no -W %h:%p ec2-user@$BASTION_IP" \
-                                deployment.yml ec2-user@$ANSIBLE_IP:/home/ec2-user/ansible/deployment.yml
+                        ssh -tt -o StrictHostKeyChecking=no \
+                            -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
+                            ec2-user@$ANSIBLE_IP 'sudo mkdir -p /etc/ansible && sudo mv /home/ec2-user/ansible/deployment.yml /etc/ansible/deployment.yml'
 
-                            ssh -tt -o StrictHostKeyChecking=no \
-                                -o ProxyCommand="ssh -o StrictHostKeyChecking=no -W %h:%p ec2-user@$BASTION_IP" \
-                                ec2-user@$ANSIBLE_IP 'sudo mkdir -p /etc/ansible && sudo mv /home/ec2-user/ansible/deployment.yml /etc/ansible/deployment.yml'
-
-                            ssh -tt -o StrictHostKeyChecking=no \
-                                -o ProxyCommand="ssh -o StrictHostKeyChecking=no -W %h:%p ec2-user@$BASTION_IP" \
-                                ec2-user@$ANSIBLE_IP 'ansible-playbook /etc/ansible/deployment.yml'
-                        '''
-                    }
+                        ssh -tt -o StrictHostKeyChecking=no \
+                            -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
+                            ec2-user@$ANSIBLE_IP 'ansible-playbook /etc/ansible/deployment.yml'
+                    '''
                 }
             }
         }
@@ -160,77 +148,4 @@ pipeline {
             steps {
                 sh 'sleep 90'
                 script {
-                    def response = sh(script: 'curl -s -o /dev/null -w "%{http_code}" https://stage.chijiokedevops.space', returnStdout: true).trim()
-                    if (response == "200") {
-                        slackSend(color: 'good', message: "✅ Stage Petclinic is up (HTTP ${response})", tokenCredentialId: 'slack')
-                    } else {
-                        slackSend(color: 'danger', message: "🚨 Stage Petclinic is down (HTTP ${response})", tokenCredentialId: 'slack')
-                    }
-                }
-            }
-        }
-
-        stage('Request for Approval') {
-            steps {
-                timeout(time: 10, unit: 'MINUTES') {
-                    input message: 'Deploy to Production?', ok: 'Yes, Deploy'
-                }
-            }
-        }
-
-        stage('Deploy to Prod') {
-            steps {
-                sshagent(['ansible-key']) {
-                    withCredentials([
-                        string(credentialsId: 'bastion-ip', variable: 'BASTION_IP'),
-                        string(credentialsId: 'ansible-ip', variable: 'ANSIBLE_IP')
-                    ]) {
-                        sh '''
-                            set -e
-                            echo 'Creating ansible dir on remote and transferring deployment file...'
-
-                            ssh -o StrictHostKeyChecking=no \
-                                -o ProxyCommand="ssh -o StrictHostKeyChecking=no -W %h:%p ec2-user@$BASTION_IP" \
-                                ec2-user@$ANSIBLE_IP 'mkdir -p /home/ec2-user/ansible'
-
-                            scp -o StrictHostKeyChecking=no \
-                                -o ProxyCommand="ssh -o StrictHostKeyChecking=no -W %h:%p ec2-user@$BASTION_IP" \
-                                deployment.yml ec2-user@$ANSIBLE_IP:/home/ec2-user/ansible/deployment.yml
-
-                            ssh -tt -o StrictHostKeyChecking=no \
-                                -o ProxyCommand="ssh -o StrictHostKeyChecking=no -W %h:%p ec2-user@$BASTION_IP" \
-                                ec2-user@$ANSIBLE_IP 'sudo mkdir -p /etc/ansible && sudo mv /home/ec2-user/ansible/deployment.yml /etc/ansible/deployment.yml'
-
-                            ssh -tt -o StrictHostKeyChecking=no \
-                                -o ProxyCommand="ssh -o StrictHostKeyChecking=no -W %h:%p ec2-user@$BASTION_IP" \
-                                ec2-user@$ANSIBLE_IP 'ansible-playbook /etc/ansible/deployment.yml'
-                        '''
-                    }
-                }
-            }
-        }
-
-        stage('Check Prod Website Availability') {
-            steps {
-                sh 'sleep 90'
-                script {
-                    def response = sh(script: 'curl -s -o /dev/null -w "%{http_code}" https://prod.chijiokedevops.space', returnStdout: true).trim()
-                    if (response == "200") {
-                        slackSend(color: 'good', message: "✅ Prod Petclinic is up (HTTP ${response})", tokenCredentialId: 'slack')
-                    } else {
-                        slackSend(color: 'danger', message: "🚨 Prod Petclinic is down (HTTP ${response})", tokenCredentialId: 'slack')
-                    }
-                }
-            }
-        }
-    }
-
-    post {
-        success {
-            slackSend(color: 'good', message: '✅ Jenkins pipeline completed successfully!', tokenCredentialId: 'slack')
-        }
-        failure {
-            slackSend(color: 'danger', message: '❌ Jenkins pipeline failed.', tokenCredentialId: 'slack')
-        }
-    }
-}
+                    def response = sh(script: 'curl -s -o /dev/null -w "%{http_code}" https://stage.chijiokedevops.space', returnStdo
