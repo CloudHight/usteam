@@ -12,7 +12,7 @@ pipeline {
     }
 
     tools {
-        terraform 'terraform' // Make sure this matches your Jenkins global tool name
+        terraform 'terraform'
     }
 
     parameters {
@@ -31,20 +31,19 @@ pipeline {
         }
 
         stage('Code Analysis') {
-    steps {
-        script {
-            try {
-                withSonarQubeEnv('Sonarqube') {
-                    sh 'mvn sonar:sonar'
+            steps {
+                script {
+                    try {
+                        withSonarQubeEnv('Sonarqube') {
+                            sh 'mvn clean verify sonar:sonar -Dsonar.projectKey=spring-petclinic'
+                        }
+                    } catch (e) {
+                        echo "SonarQube scan failed: ${e}"
+                        currentBuild.result = 'FAILURE'
+                    }
                 }
-            } catch (e) {
-                echo "SonarQube scan failed: ${e}"
-                currentBuild.result = 'FAILURE'
             }
         }
-    }
-}
-
 
         stage('Quality Gate') {
             steps {
