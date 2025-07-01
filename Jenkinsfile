@@ -12,7 +12,6 @@ pipeline {
     }
 
     tools {
-        git 'Default'       // Ensure this is set up in Jenkins → Global Tool Configuration
         terraform 'terraform'
     }
 
