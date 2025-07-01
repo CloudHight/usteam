@@ -8,11 +8,13 @@ pipeline {
         NVD_API_KEY       = credentials('nvd-key')
         BASTION_IP        = credentials('bastion-ip')
         ANSIBLE_IP        = credentials('ansible-ip')
+        PROD_BASTION_IP   = credentials('prod-bastion-ip')
+        PROD_ANSIBLE_IP   = credentials('prod-ansible-ip')
         AWS_REGION        = 'eu-west-3'
     }
 
     tools {
-        terraform 'terraform'
+        terraform 'terraform' // Make sure this matches your Jenkins global tool name
     }
 
     parameters {
@@ -24,16 +26,13 @@ pipeline {
     }
 
     stages {
-
         stage('Checkout Code') {
             steps {
-                retry(3) {
-                    git credentialsId: 'git-cred', url: 'https://github.com/Chijiokeproject/jenkinsfile1.git', branch: 'main'
-                }
+                git branch: 'main', credentialsId: 'git-cred', url: 'https://github.com/Chijiokeproject/jenkinsfile1.git'
             }
         }
 
-        // --- Terraform Stages ---
+        // Terraform Stages
         stage('Terraform Init') {
             steps {
                 dir('terraform') {
@@ -53,7 +52,7 @@ pipeline {
         stage('Terraform Plan') {
             steps {
                 dir('terraform') {
-                    sh "terraform plan -out=tfplan"
+                    sh 'terraform plan -out=tfplan'
                 }
             }
         }
@@ -64,7 +63,7 @@ pipeline {
                     script {
                         if (params.action == 'apply') {
                             sh 'terraform apply -auto-approve tfplan'
-                        } else if (params.action == 'destroy') {
+                        } else {
                             sh 'terraform destroy -auto-approve'
                         }
                     }
@@ -72,7 +71,6 @@ pipeline {
             }
         }
 
-        // --- App Build & Security ---
         stage('Code Analysis') {
             steps {
                 withSonarQubeEnv('Sonarqube') {
@@ -120,14 +118,14 @@ pipeline {
                     nexusVersion: 'nexus3',
                     protocol: 'https',
                     repository: 'nexus-repo',
-                    version: "${env.BUILD_NUMBER}"
+                    version: '1.0'
                 )
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $NEXUS_REPO/petclinicapps:${BUILD_NUMBER} .'
+                sh 'docker build -t $NEXUS_REPO/petclinicapps:latest .'
             }
         }
 
@@ -139,13 +137,13 @@ pipeline {
 
         stage('Trivy Image Scan') {
             steps {
-                sh 'trivy image -f table $NEXUS_REPO/petclinicapps:${BUILD_NUMBER} > trivyfs.txt'
+                sh 'trivy image -f table $NEXUS_REPO/petclinicapps:latest > trivyfs.txt'
             }
         }
 
         stage('Push Docker Image') {
             steps {
-                sh 'docker push $NEXUS_REPO/petclinicapps:${BUILD_NUMBER}'
+                sh 'docker push $NEXUS_REPO/petclinicapps:latest'
             }
         }
 
@@ -155,22 +153,15 @@ pipeline {
             }
         }
 
-        // --- Staging Deployment ---
         stage('Deploy to Staging') {
             steps {
                 sshagent(['ansible-key']) {
                     sh '''
-                        ssh -o StrictHostKeyChecking=no \
-                          -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
-                          ec2-user@$ANSIBLE_IP 'mkdir -p ~/ansible'
+                        ssh -o StrictHostKeyChecking=no -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" ec2-user@$ANSIBLE_IP 'mkdir -p /home/ec2-user/ansible'
 
-                        scp -o StrictHostKeyChecking=no \
-                          -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
-                          deployment.yml ec2-user@$ANSIBLE_IP:~/ansible/
+                        scp -o StrictHostKeyChecking=no -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" deployment.yml ec2-user@$ANSIBLE_IP:/home/ec2-user/ansible/
 
-                        ssh -tt -o StrictHostKeyChecking=no \
-                          -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" \
-                          ec2-user@$ANSIBLE_IP 'sudo mv ~/ansible/deployment.yml /etc/ansible/ && ansible-playbook /etc/ansible/deployment.yml'
+                        ssh -tt -o StrictHostKeyChecking=no -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" ec2-user@$ANSIBLE_IP 'sudo mv /home/ec2-user/ansible/deployment.yml /etc/ansible/ && ansible-playbook /etc/ansible/deployment.yml'
                     '''
                 }
             }
@@ -182,30 +173,23 @@ pipeline {
                 script {
                     def response = sh(script: 'curl -s -o /dev/null -w "%{http_code}" https://stage.chijiokedevops.space', returnStdout: true).trim()
                     if (response == '200') {
-                        slackSend(color: 'good', message: "✅ Staging site is live: HTTP ${response}", tokenCredentialId: 'slack')
+                        slackSend(color: 'good', message: "✅ Stage is UP (HTTP ${response})", tokenCredentialId: 'slack')
                     } else {
-                        slackSend(color: 'danger', message: "🚨 Staging site failed: HTTP ${response}", tokenCredentialId: 'slack')
+                        slackSend(color: 'danger', message: "🚨 Stage is DOWN (HTTP ${response})", tokenCredentialId: 'slack')
                     }
                 }
             }
         }
 
-        // --- Production Deployment ---
         stage('Deploy to Prod') {
             steps {
                 sshagent(['ansible-key']) {
                     sh '''
-                        ssh -o StrictHostKeyChecking=no \
-                          -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$PROD_BASTION_IP" \
-                          ec2-user@$PROD_ANSIBLE_IP 'mkdir -p ~/ansible'
+                        ssh -o StrictHostKeyChecking=no -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$PROD_BASTION_IP" ec2-user@$PROD_ANSIBLE_IP 'mkdir -p /home/ec2-user/ansible'
 
-                        scp -o StrictHostKeyChecking=no \
-                          -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$PROD_BASTION_IP" \
-                          deployment.yml ec2-user@$PROD_ANSIBLE_IP:~/ansible/
+                        scp -o StrictHostKeyChecking=no -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$PROD_BASTION_IP" deployment.yml ec2-user@$PROD_ANSIBLE_IP:/home/ec2-user/ansible/
 
-                        ssh -tt -o StrictHostKeyChecking=no \
-                          -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$PROD_BASTION_IP" \
-                          ec2-user@$PROD_ANSIBLE_IP 'sudo mv ~/ansible/deployment.yml /etc/ansible/ && ansible-playbook /etc/ansible/deployment.yml'
+                        ssh -tt -o StrictHostKeyChecking=no -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$PROD_BASTION_IP" ec2-user@$PROD_ANSIBLE_IP 'sudo mv /home/ec2-user/ansible/deployment.yml /etc/ansible/ && ansible-playbook /etc/ansible/deployment.yml'
                     '''
                 }
             }
@@ -217,9 +201,9 @@ pipeline {
                 script {
                     def response = sh(script: 'curl -s -o /dev/null -w "%{http_code}" https://prod.chijiokedevops.space', returnStdout: true).trim()
                     if (response == '200') {
-                        slackSend(color: 'good', message: "✅ Prod site is live: HTTP ${response}", tokenCredentialId: 'slack')
+                        slackSend(color: 'good', message: "✅ Prod is UP (HTTP ${response})", tokenCredentialId: 'slack')
                     } else {
-                        slackSend(color: 'danger', message: "🚨 Prod site failed: HTTP ${response}", tokenCredentialId: 'slack')
+                        slackSend(color: 'danger', message: "🚨 Prod is DOWN (HTTP ${response})", tokenCredentialId: 'slack')
                     }
                 }
             }
@@ -228,10 +212,10 @@ pipeline {
 
     post {
         success {
-            slackSend(color: 'good', message: "✅ Build #${env.BUILD_NUMBER} succeeded!", tokenCredentialId: 'slack')
+            slackSend(color: 'good', message: "✅ Jenkins build #${env.BUILD_NUMBER} succeeded!", tokenCredentialId: 'slack')
         }
         failure {
-            slackSend(color: 'danger', message: "❌ Build #${env.BUILD_NUMBER} failed.", tokenCredentialId: 'slack')
+            slackSend(color: 'danger', message: "❌ Jenkins build #${env.BUILD_NUMBER} failed.", tokenCredentialId: 'slack')
         }
         always {
             cleanWs()
