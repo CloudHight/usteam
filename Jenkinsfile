@@ -27,7 +27,9 @@ pipeline {
 
         stage('Checkout Code') {
             steps {
-                git credentialsId: 'git-cred', url: 'https://github.com/Chijiokeproject/jenkinsfile1.git', branch: 'main'
+                retry(3) {
+                    git credentialsId: 'git-cred', url: 'https://github.com/Chijiokeproject/jenkinsfile1.git', branch: 'main'
+                }
             }
         }
 
