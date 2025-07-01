@@ -38,7 +38,7 @@ pipeline {
                             sh 'mvn clean verify sonar:sonar -Dsonar.projectKey=spring-petclinic'
                         }
                     } catch (e) {
-                        echo "SonarQube scan failed: ${e}"
+                        echo "Sonarqube scan failed: ${e}"
                         currentBuild.result = 'FAILURE'
                     }
                 }
