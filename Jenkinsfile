@@ -8,11 +8,11 @@ pipeline {
         NVD_API_KEY      = credentials('nvd-key')
         BASTION_IP       = credentials('bastion-ip')
         ANSIBLE_IP       = credentials('ansible-ip')
-        BASTION_ID       = credentials('bastion-id')
         AWS_REGION       = 'eu-west-3'
     }
 
     tools {
+        git 'Default'       // Ensure this is set up in Jenkins → Global Tool Configuration
         terraform 'terraform'
     }
 
@@ -67,7 +67,7 @@ pipeline {
             }
         }
 
-        stage('Push Artifact to Nexus Repo') {
+        stage('Upload Artifact to Nexus') {
             steps {
                 nexusArtifactUploader(
                     artifacts: [[
@@ -93,7 +93,7 @@ pipeline {
             }
         }
 
-        stage('Login to Nexus Docker Repo') {
+        stage('Login to Docker Registry') {
             steps {
                 sh 'echo "$NEXUS_PASSWORD" | docker login --username "$NEXUS_USER" --password-stdin https://$NEXUS_REPO'
             }
@@ -105,7 +105,7 @@ pipeline {
             }
         }
 
-        stage('Push Docker Image to Nexus') {
+        stage('Push Docker Image') {
             steps {
                 sh 'docker push $NEXUS_REPO/petclinicapps:latest'
             }
@@ -117,7 +117,7 @@ pipeline {
             }
         }
 
-        stage('Deploy to Stage') {
+        stage('Deploy to Staging') {
             steps {
                 sshagent(['ansible-key']) {
                     sh '''
@@ -137,7 +137,7 @@ pipeline {
             }
         }
 
-        stage('Check Stage Website Availability') {
+        stage('Check Stage Website') {
             steps {
                 sh 'sleep 90'
                 script {
@@ -171,7 +171,7 @@ pipeline {
             }
         }
 
-        stage('Check Prod Website Availability') {
+        stage('Check Prod Website') {
             steps {
                 sh 'sleep 90'
                 script {
