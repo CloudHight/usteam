@@ -34,7 +34,7 @@ pipeline {
             steps {
                 script {
                     try {
-                        withSonarQubeEnv('Sonarqube') {
+                        withSonarQubeEnv('sonarqube') {
                             sh 'mvn clean verify sonar:sonar -Dsonar.projectKey=spring-petclinic'
                         }
                     } catch (e) {
