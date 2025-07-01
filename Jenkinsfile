@@ -30,45 +30,6 @@ pipeline {
             }
         }
 
-        // Terraform Stages
-        stage('Terraform Init') {
-            steps {
-                dir('terraform') {
-                    sh 'terraform init'
-                }
-            }
-        }
-
-        stage('Terraform Validate') {
-            steps {
-                dir('terraform') {
-                    sh 'terraform validate'
-                }
-            }
-        }
-
-        stage('Terraform Plan') {
-            steps {
-                dir('terraform') {
-                    sh 'terraform plan -out=tfplan'
-                }
-            }
-        }
-
-        stage('Terraform Apply or Destroy') {
-            steps {
-                dir('terraform') {
-                    script {
-                        if (params.action == 'apply') {
-                            sh 'terraform apply -auto-approve tfplan'
-                        } else {
-                            sh 'terraform destroy -auto-approve'
-                        }
-                    }
-                }
-            }
-        }
-
         stage('Code Analysis') {
             steps {
                 withSonarQubeEnv('Sonarqube') {
