@@ -26,12 +26,8 @@ pipeline {
 
     stages {
 
-        stage('Initialize Git Tool & Checkout Code') {
+        stage('Checkout Code') {
             steps {
-                script {
-                    def gitToolPath = tool name: 'Default', type: 'git'
-                    env.PATH = "${gitToolPath}:${env.PATH}"
-                }
                 git credentialsId: 'git-cred', url: 'https://github.com/Chijiokeproject/jenkinsfile1.git', branch: 'main'
             }
         }
