@@ -31,12 +31,20 @@ pipeline {
         }
 
         stage('Code Analysis') {
-            steps {
+    steps {
+        script {
+            try {
                 withSonarQubeEnv('Sonarqube') {
                     sh 'mvn sonar:sonar'
                 }
+            } catch (e) {
+                echo "SonarQube scan failed: ${e}"
+                currentBuild.result = 'FAILURE'
             }
         }
+    }
+}
+
 
         stage('Quality Gate') {
             steps {
