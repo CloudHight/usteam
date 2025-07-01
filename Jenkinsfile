@@ -2,17 +2,15 @@ pipeline {
     agent any
 
     environment {
-        NEXUS_REPO       = credentials('nexus-ip-port')
-        NEXUS_USER       = credentials('nexus-username')
-        NEXUS_PASSWORD   = credentials('nexus-password')
-        NVD_API_KEY      = credentials('nvd-key')
-        BASTION_IP       = credentials('bastion-ip')
-        ANSIBLE_IP       = credentials('ansible-ip')
-        AWS_REGION       = 'eu-west-3'
-    }
-
-    tools {
-        terraform 'terraform'
+        NEXUS_REPO        = credentials('nexus-ip-port')
+        NEXUS_USER        = credentials('nexus-username')
+        NEXUS_PASSWORD    = credentials('nexus-password')
+        NVD_API_KEY       = credentials('nvd-key')
+        BASTION_IP        = credentials('bastion-ip')
+        ANSIBLE_IP        = credentials('ansible-ip')
+        PROD_BASTION_IP   = credentials('prod-bastion-ip')
+        PROD_ANSIBLE_IP   = credentials('prod-ansible-ip')
+        AWS_REGION        = 'eu-west-3'
     }
 
     parameters {
@@ -83,14 +81,14 @@ pipeline {
                     nexusVersion: 'nexus3',
                     protocol: 'https',
                     repository: 'nexus-repo',
-                    version: '1.0'
+                    version: "${env.BUILD_NUMBER}"
                 )
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $NEXUS_REPO/petclinicapps:latest .'
+                sh 'docker build -t $NEXUS_REPO/petclinicapps:${BUILD_NUMBER} .'
             }
         }
 
@@ -102,13 +100,13 @@ pipeline {
 
         stage('Trivy Image Scan') {
             steps {
-                sh 'trivy image -f table $NEXUS_REPO/petclinicapps:latest > trivyfs.txt'
+                sh 'trivy image -f table $NEXUS_REPO/petclinicapps:${BUILD_NUMBER} > trivyfs.txt'
             }
         }
 
         stage('Push Docker Image') {
             steps {
-                sh 'docker push $NEXUS_REPO/petclinicapps:latest'
+                sh 'docker push $NEXUS_REPO/petclinicapps:${BUILD_NUMBER}'
             }
         }
 
@@ -184,6 +182,18 @@ pipeline {
                     }
                 }
             }
+        }
+    }
+
+    post {
+        success {
+            slackSend(color: 'good', message: "✅ Pipeline succeeded for build ${env.BUILD_NUMBER}", tokenCredentialId: 'slack')
+        }
+        failure {
+            slackSend(color: 'danger', message: "❌ Pipeline FAILED for build ${env.BUILD_NUMBER}", tokenCredentialId: 'slack')
+        }
+        always {
+            cleanWs()
         }
     }
 }
