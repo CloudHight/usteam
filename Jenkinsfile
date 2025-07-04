@@ -135,7 +135,7 @@ pipeline {
 
         stage('Check Stage Website') {
             steps {
-                sh 'sleep 60'
+                sh 'sleep 90'
                 script {
                     def response = sh(script: 'curl -s -o /dev/null -w "%{http_code}" https://stage.chijiokedevops.space', returnStdout: true).trim()
                     if (response == '200') {
@@ -147,6 +147,13 @@ pipeline {
             }
         }
 
+        stage('Request for Approval') {
+            steps {
+                timeout(activity: true, time: 10) {
+                    input message: 'Needs Approval ', submitter: 'admin'
+                }
+            }
+        }
         stage('Deploy to Prod') {
             steps {
                 sshagent(['ansible-key']) {
@@ -163,7 +170,7 @@ pipeline {
 
         stage('Check Prod Website') {
             steps {
-                sh 'sleep 60'
+                sh 'sleep 90'
                 script {
                     def response = sh(script: 'curl -s -o /dev/null -w "%{http_code}" https://prod.chijiokedevops.space', returnStdout: true).trim()
                     if (response == '200') {
