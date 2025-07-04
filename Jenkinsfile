@@ -123,11 +123,11 @@ pipeline {
             steps {
                 sshagent(['ansible-key']) {
                     sh '''
-                        ssh -o StrictHostKeyChecking=no -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$54.177.254.198" ec2-user@$10.0.3.129 'mkdir -p /home/ec2-user/ansible'
+                        ssh -o StrictHostKeyChecking=no -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" ec2-user@$ANSIBLE_IP 'mkdir -p /home/ec2-user/ansible'
 
-                        scp -o StrictHostKeyChecking=no -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$54.177.254.198" deployment.yml ec2-user@$10.0.3.129:/home/ec2-user/ansible/
+                        scp -o StrictHostKeyChecking=no -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" deployment.yml ec2-user@$ANSIBLE_IP:/home/ec2-user/ansible/
 
-                        ssh -tt -o StrictHostKeyChecking=no -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$54.177.254.198" ec2-user@$10.0.3.129 'sudo mv /home/ec2-user/ansible/deployment.yml /etc/ansible/ && ansible-playbook /etc/ansible/deployment.yml'
+                        ssh -tt -o StrictHostKeyChecking=no -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" ec2-user@$ANSIBLE_IP 'sudo mv /home/ec2-user/ansible/deployment.yml /etc/ansible/ && ansible-playbook /etc/ansible/deployment.yml'
                     '''
                 }
             }
@@ -158,11 +158,11 @@ pipeline {
             steps {
                 sshagent(['ansible-key']) {
                     sh '''
-                        ssh -o StrictHostKeyChecking=no -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$54.177.254.198" ec2-user@$10.0.3.129 'mkdir -p /home/ec2-user/ansible'
+                        ssh -o StrictHostKeyChecking=no -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" ec2-user@$ANSIBLE_IP 'mkdir -p /home/ec2-user/ansible'
 
-                        scp -o StrictHostKeyChecking=no -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$54.177.254.198" deployment.yml ec2-user@$10.0.3.129:/home/ec2-user/ansible/
+                        scp -o StrictHostKeyChecking=no -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" deployment.yml ec2-user@$ANSIBLE_IP:/home/ec2-user/ansible/
 
-                        ssh -tt -o StrictHostKeyChecking=no -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$54.177.254.198" ec2-user@$10.0.3.129 'sudo mv /home/ec2-user/ansible/deployment.yml /etc/ansible/ && ansible-playbook /etc/ansible/deployment.yml'
+                        ssh -tt -o StrictHostKeyChecking=no -o "ProxyCommand=ssh -W %h:%p -o StrictHostKeyChecking=no ec2-user@$BASTION_IP" ec2-user@$ANSIBLE_IP 'sudo mv /home/ec2-user/ansible/deployment.yml /etc/ansible/ && ansible-playbook /etc/ansible/deployment.yml'
                     '''
                 }
             }
