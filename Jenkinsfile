@@ -8,7 +8,7 @@ pipeline {
         NVD_API_KEY       = credentials('nvd-key')
         BASTION_IP        = credentials('bastion-ip')
         ANSIBLE_IP        = credentials('ansible-ip')
-        AWS_REGION        = 'eu-west-3'
+        AWS_REGION        = 'eu-west-1'
     }
 
     tools {
