@@ -96,16 +96,14 @@ pipeline{
                     sleep 5
                   '''
 
-                  // SSH through the SSM tunnel to Ansible server
+                  // SSH into Bastion (via local port 9999), then hop to Ansible server
                   sshagent(['ansible-key']) {
                     sh '''
-                      ssh -o StrictHostKeyChecking=no \
-                          -p 9999 \
-                          ec2-user@${ANSIBLE_IP} \
-                          "ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"
+                      ssh -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
+                        "ssh -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \
+                          'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
                     '''
                   }
-
                   // Kill the SSM session after deploy
                   sh 'pkill -f "aws ssm start-session"'
                 }
