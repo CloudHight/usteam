@@ -97,7 +97,7 @@ pipeline{
                   '''
 
                   // SSH into Bastion (via local port 9999), then hop to Ansible server
-                  sshagent(['ansible-key']) {
+                  sshagent(['bastion-key', 'ansible-key']) {
                     sh '''
                       ssh -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
                         "ssh -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \
