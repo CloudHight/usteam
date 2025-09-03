@@ -8,7 +8,7 @@ pipeline{
         ANSIBLE_IP = credentials('ansible-ip')
         NVD_API_KEY= credentials('nvd-key')
         BASTION_ID= credentials('bastion-id')
-        AWS_REGION= 'eu-west-1'
+        AWS_REGION= 'eu-west-3'
     }
     triggers {
         pollSCM('* * * * *') // Runs every minute
@@ -50,7 +50,7 @@ pipeline{
                 type: 'war']],
                 credentialsId: 'nexus-cred',
                 groupId: 'Petclinic',
-                nexusUrl: 'nexus.set30.space',
+                nexusUrl: 'nexus.selfdevops.space',
                 nexusVersion: 'nexus3',
                 protocol: 'https',
                 repository: 'nexus-repo',
@@ -112,13 +112,13 @@ pipeline{
         stage('check stage website availability') {
             steps {
                  sh "sleep 90"
-                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://stage.set30.space"
+                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://stage.selfdevops.space"
                 script {
-                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.set30.space", returnStdout: true).trim()
+                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.selfdevops.space", returnStdout: true).trim()
                     if (response == "200") {
-                        slackSend(color: 'good', message: "The stage petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack')
+                        slackSend(color: 'good', message: "The stage petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
                     } else {
-                        slackSend(color: 'danger', message: "The stage petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack')
+                        slackSend(color: 'danger', message: "The stage petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
                     }
                 }
             }
@@ -160,13 +160,13 @@ pipeline{
         stage('check prod website availability') {
             steps {
                  sh "sleep 90"
-                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://prod.set30.space"
+                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://prod.selfdevops.space"
                 script {
-                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.set30.space", returnStdout: true).trim()
+                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.selfdevops.space", returnStdout: true).trim()
                     if (response == "200") {
-                        slackSend(color: 'good', message: "The prod petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack')
+                        slackSend(color: 'good', message: "The prod petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
                     } else {
-                        slackSend(color: 'danger', message: "The prod petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack')
+                        slackSend(color: 'danger', message: "The prod petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
                     }
                 }
             }
