@@ -45,16 +45,16 @@ pipeline {
         stage('Push Artifact to Nexus Repo') {
             steps {
                 nexusArtifactUploader artifacts: [[artifactId: 'spring-petclinic',
-                classifier: '',
-                file: 'target/spring-petclinic-2.4.2.war',
-                type: 'war']],
-                credentialsId: 'nexus-cred',
-                groupId: 'Petclinic',
-                nexusUrl: 'nexus.selfdevops.space',
-                nexusVersion: 'nexus3',
-                protocol: 'https',
-                repository: 'nexus-repo',
-                version: '1.0'
+                                                   classifier: '',
+                                                   file: 'target/spring-petclinic-2.4.2.war',
+                                                   type: 'war']],
+                                     credentialsId: 'nexus-cred',
+                                     groupId: 'Petclinic',
+                                     nexusUrl: 'nexus.selfdevops.space',
+                                     nexusVersion: 'nexus3',
+                                     protocol: 'https',
+                                     repository: 'nexus-repo',
+                                     version: '1.0'
             }
         }
         stage('Build Docker Image') {
@@ -83,26 +83,29 @@ pipeline {
             }
         }
 
-        // ✅ Stage deployment with detached SSM
         stage('Deploying to Stage Environment') {
             steps {
                 script {
+                    // Start SSM tunnel directly to Ansible server
                     sh '''
-                        setsid nohup aws ssm start-session \
-                          --target ${BASTION_ID} \
-                          --region ${AWS_REGION} \
-                          --document-name AWS-StartPortForwardingSession \
-                          --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
-                          > /tmp/ssm-stage.log 2>&1 < /dev/null &
-                        sleep 5
+                      setsid nohup aws ssm start-session \
+                        --target ${BASTION_ID} \
+                        --region ${AWS_REGION} \
+                        --document-name AWS-StartPortForwardingSessionToRemoteHost \
+                        --parameters '{"host":["'${ANSIBLE_IP}'"],"portNumber":["22"],"localPortNumber":["9999"]}' \
+                        > /tmp/ssm-tunnel-stage.log 2>&1 < /dev/null &
+                      sleep 5
                     '''
-                    sshagent(['bastion-key', 'ansible-key']) {
+
+                    // Run Ansible on Stage
+                    sshagent(['ansible-key']) {
                         sh '''
-                          ssh -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
-                            "ssh -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \
-                              'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
+                          ssh -o StrictHostKeyChecking=no -p 9999 ec2-user@localhost \
+                            'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'
                         '''
                     }
+
+                    // Kill the SSM session after deploy
                     sh 'pkill -f "aws ssm start-session" || true'
                 }
             }
@@ -110,13 +113,14 @@ pipeline {
 
         stage('check stage website availability') {
             steps {
-                 sh "sleep 90"
-                 script {
+                sh "sleep 90"
+                script {
                     def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.selfdevops.space", returnStdout: true).trim()
                     if (response == "200") {
-                        slackSend(color: 'good', message: "Stage Petclinic is UP ✅ with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
+                        slackSend(color: 'good', message: "✅ Stage Petclinic app is UP (HTTP ${response})", tokenCredentialId: 'slack-cred')
                     } else {
-                        slackSend(color: 'danger', message: "Stage Petclinic is DOWN ❌ with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
+                        slackSend(color: 'danger', message: "❌ Stage Petclinic app is DOWN (HTTP ${response})", tokenCredentialId: 'slack-cred')
+                        error("Stage deployment failed")
                     }
                 }
             }
@@ -125,32 +129,34 @@ pipeline {
         stage('Request for Approval') {
             steps {
                 timeout(activity: true, time: 10) {
-                    input message: 'Needs Approval ', submitter: 'admin'
+                    input message: 'Deploy to Production?', submitter: 'admin'
                 }
             }
         }
 
-        // ✅ Prod deployment with detached SSM
         stage('Deploying to Prod Environment') {
             steps {
                 script {
+                    // Start SSM tunnel directly to Ansible server
                     sh '''
-                        setsid nohup aws ssm start-session \
-                          --target ${BASTION_ID} \
-                          --region ${AWS_REGION} \
-                          --document-name AWS-StartPortForwardingSession \
-                          --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
-                          > /tmp/ssm-prod.log 2>&1 < /dev/null &
-                        sleep 5
+                      setsid nohup aws ssm start-session \
+                        --target ${BASTION_ID} \
+                        --region ${AWS_REGION} \
+                        --document-name AWS-StartPortForwardingSessionToRemoteHost \
+                        --parameters '{"host":["'${ANSIBLE_IP}'"],"portNumber":["22"],"localPortNumber":["9999"]}' \
+                        > /tmp/ssm-tunnel-prod.log 2>&1 < /dev/null &
+                      sleep 5
                     '''
+
+                    // Run Ansible on Prod
                     sshagent(['ansible-key']) {
                         sh '''
-                          ssh -o StrictHostKeyChecking=no \
-                              -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ubuntu@localhost -p 9999" \
-                              ec2-user@${ANSIBLE_IP} \
-                              "ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml"
+                          ssh -o StrictHostKeyChecking=no -p 9999 ec2-user@localhost \
+                            'ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml'
                         '''
                     }
+
+                    // Kill the SSM session after deploy
                     sh 'pkill -f "aws ssm start-session" || true'
                 }
             }
@@ -158,13 +164,14 @@ pipeline {
 
         stage('check prod website availability') {
             steps {
-                 sh "sleep 90"
-                 script {
+                sh "sleep 90"
+                script {
                     def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.selfdevops.space", returnStdout: true).trim()
                     if (response == "200") {
-                        slackSend(color: 'good', message: "Prod Petclinic is UP ✅ with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
+                        slackSend(color: 'good', message: "✅ Prod Petclinic app is UP (HTTP ${response})", tokenCredentialId: 'slack-cred')
                     } else {
-                        slackSend(color: 'danger', message: "Prod Petclinic is DOWN ❌ with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
+                        slackSend(color: 'danger', message: "❌ Prod Petclinic app is DOWN (HTTP ${response})", tokenCredentialId: 'slack-cred')
+                        error("Prod deployment failed")
                     }
                 }
             }
