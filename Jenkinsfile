@@ -87,7 +87,7 @@ pipeline{
                script {
                   // Start SSM session to bastion with port forwarding
                   sh '''
-                    aws ssm start-session \
+                    nohup aws ssm start-session \
                       --target ${BASTION_ID} \
                       --region ${AWS_REGION} \
                       --document-name AWS-StartPortForwardingSession \
