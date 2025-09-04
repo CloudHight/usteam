@@ -91,8 +91,8 @@ pipeline{
                       --target ${BASTION_ID} \
                       --region ${AWS_REGION} \
                       --document-name AWS-StartPortForwardingSession \
-                      --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
-                      &
+                      --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \ /tmp/ssm-port-forward.log 2>&1  < /dev/null &
+                    
                     sleep 5
                   '''
 
