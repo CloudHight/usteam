@@ -144,6 +144,12 @@ pipeline{
                     &
                   sleep 5  # Wait for port forwarding to establish
                 '''
+                // Remove old host key fingerprints
+                sh '''
+                  ssh-keygen -R ${ANSIBLE_IP} || true
+                  ssh-keygen -R "[localhost]:9999" || true
+                '''
+                  
                 // SSH through the tunnel to Ansible server on port 22
                 sshagent(['ansible-key']) {
                   sh '''
