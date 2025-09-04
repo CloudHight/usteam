@@ -18,7 +18,7 @@ pipeline{
             steps {
                 withSonarQubeEnv('sonarqube') {
                     sh 'mvn sonar:sonar'
-                }   
+                }  
             }
         }
         stage('Quality Gate') {
@@ -87,15 +87,15 @@ pipeline{
                script {
                   // Start SSM session to bastion with port forwarding
                   sh '''
-                    nohup aws ssm start-session \
+                    aws ssm start-session \
                       --target ${BASTION_ID} \
                       --region ${AWS_REGION} \
                       --document-name AWS-StartPortForwardingSession \
-                      --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \ /tmp/ssm-port-forward.log 2>&1  < /dev/null &
-                    
+                      --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
+                      &
                     sleep 5
                   '''
-
+ 
                   // SSH into Bastion (via local port 9999), then hop to Ansible server
                   sshagent(['bastion-key', 'ansible-key']) {
                     sh '''
@@ -109,7 +109,7 @@ pipeline{
                 }
               }
             }
-
+ 
         stage('check stage website availability') {
             steps {
                  sh "sleep 90"
@@ -144,12 +144,6 @@ pipeline{
                     &
                   sleep 5  # Wait for port forwarding to establish
                 '''
-                // Remove old host key fingerprints
-                sh '''
-                  ssh-keygen -R ${ANSIBLE_IP} || true
-                  ssh-keygen -R "[localhost]:9999" || true
-                '''
-                  
                 // SSH through the tunnel to Ansible server on port 22
                 sshagent(['ansible-key']) {
                   sh '''
@@ -180,5 +174,4 @@ pipeline{
         }
     }
 }
-    
-
+ 
