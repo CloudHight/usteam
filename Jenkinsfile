@@ -87,7 +87,6 @@ pipeline {
                 script {
                     def localPort = 9000 + (env.BUILD_NUMBER.toInteger() % 1000)
                     try {
-                        // Start SSM session
                         sh """
                           nohup aws ssm start-session \
                             --target ${BASTION_ID} \
@@ -98,7 +97,6 @@ pipeline {
                           echo \$! > /tmp/ssm-stage.pid
                           sleep 10
                         """
-                        // SSH into bastion → ansible
                         sshagent(['bastion-key', 'ansible-key']) {
                             sh """
                               ssh -o StrictHostKeyChecking=no -p ${localPort} ubuntu@localhost \\
@@ -107,15 +105,15 @@ pipeline {
                             """
                         }
                     } finally {
-                        sh(script: '''
-                          if [ -f /tmp/ssm-stage.pid ]; then
-                            pid=$(cat /tmp/ssm-stage.pid)
-                            if kill -0 "$pid" >/dev/null 2>&1; then
-                              kill "$pid" >/dev/null 2>&1 || true
-                            fi
-                            rm -f /tmp/ssm-stage.pid /tmp/ssm-stage.log
-                          fi
-                        ''', returnStdout: true)
+                        sh(script: '''#!/bin/sh
+if [ -f /tmp/ssm-stage.pid ]; then
+  pid=$(cat /tmp/ssm-stage.pid)
+  if kill -0 "$pid" >/dev/null 2>&1; then
+    kill "$pid" >/dev/null 2>&1 || true
+  fi
+  rm -f /tmp/ssm-stage.pid /tmp/ssm-stage.log
+fi
+''', returnStdout: true)
                     }
                 }
             }
@@ -145,7 +143,6 @@ pipeline {
                 script {
                     def localPort = 9100 + (env.BUILD_NUMBER.toInteger() % 1000)
                     try {
-                        // Start SSM session
                         sh """
                           nohup aws ssm start-session \
                             --target ${BASTION_ID} \
@@ -156,7 +153,6 @@ pipeline {
                           echo \$! > /tmp/ssm-prod.pid
                           sleep 10
                         """
-                        // SSH through tunnel → ansible
                         sshagent(['ansible-key']) {
                             sh """
                               ssh -o StrictHostKeyChecking=no -p ${localPort} ubuntu@localhost \\
@@ -165,15 +161,15 @@ pipeline {
                             """
                         }
                     } finally {
-                        sh(script: '''
-                          if [ -f /tmp/ssm-prod.pid ]; then
-                            pid=$(cat /tmp/ssm-prod.pid)
-                            if kill -0 "$pid" >/dev/null 2>&1; then
-                              kill "$pid" >/dev/null 2>&1 || true
-                            fi
-                            rm -f /tmp/ssm-prod.pid /tmp/ssm-prod.log
-                          fi
-                        ''', returnStdout: true)
+                        sh(script: '''#!/bin/sh
+if [ -f /tmp/ssm-prod.pid ]; then
+  pid=$(cat /tmp/ssm-prod.pid)
+  if kill -0 "$pid" >/dev/null 2>&1; then
+    kill "$pid" >/dev/null 2>&1 || true
+  fi
+  rm -f /tmp/ssm-prod.pid /tmp/ssm-prod.log
+fi
+''', returnStdout: true)
                     }
                 }
             }
