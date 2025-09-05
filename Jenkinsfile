@@ -3,12 +3,12 @@ pipeline{
     environment {
         NEXUS_USER = credentials('nexus-username')
         NEXUS_PASSWORD = credentials('nexus-password')
-        NEXUS_REPO = credentials('nexus-ip-port')
+        NEXUS_REPO = credentials('nexus-repo')
         BASTION_IP = credentials('bastion-ip')
         ANSIBLE_IP = credentials('ansible-ip')
         NVD_API_KEY= credentials('nvd-key')
         BASTION_ID= credentials('bastion-id')
-        AWS_REGION= 'eu-west-2'
+        AWS_REGION= 'eu-west-3'
     }
     triggers {
         pollSCM('* * * * *') // Runs every minute
@@ -50,7 +50,7 @@ pipeline{
                 type: 'war']],
                 credentialsId: 'nexus-cred',
                 groupId: 'Petclinic',
-                nexusUrl: 'nexus.eamanzebuzz.com.ng',
+                nexusUrl: 'nexus.steven12.space',
                 nexusVersion: 'nexus3',
                 protocol: 'https',
                 repository: 'nexus-repo',
@@ -67,9 +67,9 @@ pipeline{
                 sh 'docker login --username $NEXUS_USER --password $NEXUS_PASSWORD $NEXUS_REPO'
             }
         }
-        stage('Trivy Image Scan') {
+        stage('Trivy image Scan') {
             steps {
-                sh "trivy image -f table -o trivyreport.txt $NEXUS_REPO/petclinicapps"
+                sh "trivy image -f table $NEXUS_REPO/petclinicapps > trivyfs.txt"
             }
         }
         stage('Push to Nexus Docker Repo') {
@@ -82,52 +82,44 @@ pipeline{
                 sh 'docker image prune -f'
             }
         }
-        stage ('Deploying to Stage Environment') {
-          steps {
-              script {
-                // Start SSM session to bastion with port forwarding for SSH (port 22)
-                sh '''
-                  aws ssm start-session \
-                    --target ${BASTION_ID} \
-                    --region ${AWS_REGION} \
-                    --document-name AWS-StartPortForwardingSession \
-                    --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
-                    &
-                  sleep 5  # Wait for port forwarding to establish
-                '''
-                // SSH through the tunnel to Ansible server on port 22
-                sshagent(['ansible-key']) {
+       stage ('Deploying to Stage Environment') {
+            steps {
+               script {
+                  // Start SSM session to bastion with port forwarding
                   sh '''
-                    ssh -o StrictHostKeyChecking=no \
-                        -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ubuntu@localhost -p 9999" \
-                        ubuntu@${ANSIBLE_IP} \
-                        "ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"
+                    aws ssm start-session \
+                      --target ${BASTION_ID} \
+                      --region ${AWS_REGION} \
+                      --document-name AWS-StartPortForwardingSession \
+                      --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
+                      &
+                    sleep 5
                   '''
+
+                  // SSH into Bastion (via local port 9999), then hop to Ansible server
+                  sshagent(['bastion-key', 'ansible-key']) {
+                    sh '''
+                      ssh -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
+                        "ssh -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \
+                          'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
+                    '''
+                  }
+                  // Kill the SSM session after deploy
+                  sh 'pkill -f "aws ssm start-session"'
                 }
-                // Terminate the SSM session
-                sh 'pkill -f "aws ssm start-session"'
               }
-          }
-        }
-        // stage('Deploy to stage') {
-        //     steps {
-        //         sshagent(['ansible-key']) {
-        //             sh '''
-        //               ssh -t -t -o StrictHostKeyChecking=no -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ubuntu@${BASTION_IP}" ubuntu@${ANSIBLE_IP} "ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"
-        //             '''
-        //         }
-        //     }
-        // }
+            }
+
         stage('check stage website availability') {
             steps {
                  sh "sleep 90"
-                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://stage.eamanzebuzz.com.ng"
+                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://stage.steven12.space"
                 script {
-                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.eamanzebuzz.com.ng", returnStdout: true).trim()
+                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.steven12.space", returnStdout: true).trim()
                     if (response == "200") {
-                        slackSend(color: 'good', message: "The stage petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack')
+                        slackSend(color: 'good', message: "The stage petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
                     } else {
-                        slackSend(color: 'danger', message: "The stage petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack')
+                        slackSend(color: 'danger', message: "The stage petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
                     }
                 }
             }
@@ -157,7 +149,7 @@ pipeline{
                   sh '''
                     ssh -o StrictHostKeyChecking=no \
                         -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ubuntu@localhost -p 9999" \
-                        ubuntu@${ANSIBLE_IP} \
+                        ec2-user@${ANSIBLE_IP} \
                         "ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml"
                   '''
                 }
@@ -169,17 +161,16 @@ pipeline{
         stage('check prod website availability') {
             steps {
                  sh "sleep 90"
-                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://prod.eamanzebuzz.com.ng"
+                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://prod.steven12.space"
                 script {
-                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.eamanzebuzz.com.ng", returnStdout: true).trim()
+                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.steven12.space", returnStdout: true).trim()
                     if (response == "200") {
-                        slackSend(color: 'good', message: "The prod petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack')
+                        slackSend(color: 'good', message: "The prod petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
                     } else {
-                        slackSend(color: 'danger', message: "The prod petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack')
+                        slackSend(color: 'danger', message: "The prod petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
                     }
                 }
             }
         }
     }
 }
-    
