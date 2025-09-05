@@ -8,7 +8,7 @@ pipeline {
         ANSIBLE_IP     = credentials('ansible-ip')
         NVD_API_KEY    = credentials('nvd-key')
         BASTION_ID     = credentials('bastion-id')
-        AWS_REGION     = 'eu-west-3'
+        AWS_REGION     = 'eu-west-2'
     }
     triggers {
         pollSCM('* * * * *') // Runs every minute
