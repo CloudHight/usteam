@@ -107,7 +107,7 @@ pipeline {
                             """
                         }
                     } finally {
-                        sh '''
+                        sh(script: '''
                           if [ -f /tmp/ssm-stage.pid ]; then
                             pid=$(cat /tmp/ssm-stage.pid)
                             if kill -0 "$pid" >/dev/null 2>&1; then
@@ -115,7 +115,7 @@ pipeline {
                             fi
                             rm -f /tmp/ssm-stage.pid /tmp/ssm-stage.log
                           fi
-                        '''
+                        ''', returnStdout: true)
                     }
                 }
             }
@@ -165,7 +165,7 @@ pipeline {
                             """
                         }
                     } finally {
-                        sh '''
+                        sh(script: '''
                           if [ -f /tmp/ssm-prod.pid ]; then
                             pid=$(cat /tmp/ssm-prod.pid)
                             if kill -0 "$pid" >/dev/null 2>&1; then
@@ -173,7 +173,7 @@ pipeline {
                             fi
                             rm -f /tmp/ssm-prod.pid /tmp/ssm-prod.log
                           fi
-                        '''
+                        ''', returnStdout: true)
                     }
                 }
             }
