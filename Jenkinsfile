@@ -18,7 +18,7 @@ pipeline {
             steps {
                 withSonarQubeEnv('sonarqube') {
                     sh 'mvn sonar:sonar'
-                }
+                }   
             }
         }
         stage('Quality Gate') {
@@ -110,9 +110,10 @@ pipeline {
                         sh '''
                           if [ -f /tmp/ssm-stage.pid ]; then
                             pid=$(cat /tmp/ssm-stage.pid)
-                            if kill -0 $pid 2>/dev/null; then
-                              kill $pid >/dev/null 2>&1 || true
+                            if kill -0 "$pid" >/dev/null 2>&1; then
+                              kill "$pid" >/dev/null 2>&1 || true
                             fi
+                            rm -f /tmp/ssm-stage.pid /tmp/ssm-stage.log
                           fi
                         '''
                     }
@@ -167,9 +168,10 @@ pipeline {
                         sh '''
                           if [ -f /tmp/ssm-prod.pid ]; then
                             pid=$(cat /tmp/ssm-prod.pid)
-                            if kill -0 $pid 2>/dev/null; then
-                              kill $pid >/dev/null 2>&1 || true
+                            if kill -0 "$pid" >/dev/null 2>&1; then
+                              kill "$pid" >/dev/null 2>&1 || true
                             fi
+                            rm -f /tmp/ssm-prod.pid /tmp/ssm-prod.log
                           fi
                         '''
                     }
