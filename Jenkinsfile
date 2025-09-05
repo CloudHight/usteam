@@ -59,12 +59,12 @@ pipeline{
         }
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $NEXUS_REPO/petclinicapps .'
+                sh 'docker build -t $NEXUS_REPO/petclinicapps:latest .'
             }
         }
         stage('Log Into Nexus Docker Repo') {
             steps {
-                sh 'docker login --username $NEXUS_USER --password $NEXUS_PASSWORD $NEXUS_REPO'
+                sh 'docker login --username ${NEXUS_USER} --password ${NEXUS_PASSWORD} ${NEXUS_REPO}'
             }
         }
         stage('Trivy image Scan') {
@@ -74,7 +74,7 @@ pipeline{
         }
         stage('Push to Nexus Docker Repo') {
             steps {
-                sh 'docker push $NEXUS_REPO/petclinicapps'
+                sh 'docker push $NEXUS_REPO/petclinicapps:latest'
             }
         }
         stage('prune docker images') {
