@@ -1,14 +1,13 @@
 pipeline{
     agent any
     environment {
-        NEXUS_USER = credentials('nexus-username')
-        NEXUS_PASSWORD = credentials('nexus-password')
-        NEXUS_REPO = credentials('nexus-repo')
-        BASTION_IP = credentials('bastion-ip')
+        NEXUS_USER = credentials('nexus-docker-username')
+        NEXUS_PASSWORD = credentials('nexus-docker-password')
+        NEXUS_REPO = credentials('nexus-docker-url')
         ANSIBLE_IP = credentials('ansible-ip')
         NVD_API_KEY= credentials('nvd-key')
         BASTION_ID= credentials('bastion-id')
-        AWS_REGION= 'eu-west-3'
+        AWS_REGION= 'us-west-1'
     }
     triggers {
         pollSCM('* * * * *') // Runs every minute
@@ -48,9 +47,9 @@ pipeline{
                 classifier: '',
                 file: 'target/spring-petclinic-2.4.2.war',
                 type: 'war']],
-                credentialsId: 'nexus-cred',
+                credentialsId: 'nexus-maven-creds',
                 groupId: 'Petclinic',
-                nexusUrl: 'nexus.selfdevops.space',
+                nexusUrl: 'nexus.work-experience-2025.buzz',
                 nexusVersion: 'nexus3',
                 protocol: 'https',
                 repository: 'nexus-repo',
@@ -59,7 +58,7 @@ pipeline{
         }
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $NEXUS_REPO/petclinicapps .'
+                sh 'docker build -t $NEXUS_REPO/appPetclinic .'
             }
         }
         stage('Log Into Nexus Docker Repo') {
@@ -69,12 +68,12 @@ pipeline{
         }
         stage('Trivy image Scan') {
             steps {
-                sh "trivy image -f table $NEXUS_REPO/petclinicapps > trivyfs.txt"
+                sh "trivy image -f table $NEXUS_REPO/appPetclinic > trivyfs.txt"
             }
         }
         stage('Push to Nexus Docker Repo') {
             steps {
-                sh 'docker push $NEXUS_REPO/petclinicapps'
+                sh 'docker push $NEXUS_REPO/appPetclinic'
             }
         }
         stage('prune docker images') {
@@ -113,13 +112,13 @@ pipeline{
         stage('check stage website availability') {
             steps {
                  sh "sleep 90"
-                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://stage.selfdevops.space"
+                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://stage.work-experience-2025.buzz"
                 script {
-                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.selfdevops.space", returnStdout: true).trim()
+                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.work-experience-2025.buzz", returnStdout: true).trim()
                     if (response == "200") {
-                        slackSend(color: 'good', message: "The stage petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
+                        slackSend(color: 'good', message: "The stage petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack')
                     } else {
-                        slackSend(color: 'danger', message: "The stage petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
+                        slackSend(color: 'danger', message: "The stage petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack')
                     }
                 }
             }
@@ -161,13 +160,13 @@ pipeline{
         stage('check prod website availability') {
             steps {
                  sh "sleep 90"
-                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://prod.selfdevops.space"
+                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://prod.work-experience-2025.buzz"
                 script {
-                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.selfdevops.space", returnStdout: true).trim()
+                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.work-experience-2025.buzz", returnStdout: true).trim()
                     if (response == "200") {
-                        slackSend(color: 'good', message: "The prod petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
+                        slackSend(color: 'good', message: "The prod petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack')
                     } else {
-                        slackSend(color: 'danger', message: "The prod petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
+                        slackSend(color: 'danger', message: "The prod petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack')
                     }
                 }
             }
