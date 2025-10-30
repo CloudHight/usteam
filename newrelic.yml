@@ -1,10 +1,10 @@
 common: &default_settings
   # ============================== LICENSE KEY ===============================
   # You must specify the license key associated with your New Relic account.
-  license_key: 'eu01xx74ec30da95dce0c56c6e89b2f9FFFFNRAL'
+  license_key: 'eu01xxb33245392fc997079ca7554ca2FFFFNRAL'
   agent_enabled: true
   # Set the name of your application as you'd like it show up in New Relic.
-  app_name: 'petclinicapps'
+  app_name: 'appPetclinic'
   high_security: false
   enable_auto_app_naming: false
   enable_auto_transaction_naming: true
@@ -66,12 +66,12 @@ common: &default_settings
   labels:
 development:
   <<: *default_settings
-  app_name: Pet-Adoption (Development)
+  app_name: appPetclinic (Development)
 test:
   <<: *default_settings
-  app_name: Pet-Adoption (Test)
+  app_name: appPetclinic (Test)
 production:
   <<: *default_settings
 staging:
   <<: *default_settings
-  app_name: Pet-Adoption (Staging)
+  app_name: appPetclinic (Staging)
