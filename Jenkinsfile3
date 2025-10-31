@@ -74,7 +74,7 @@ pipeline {
         }                
         stage('Trivy image scan') {
             steps {
-                sh "trivy image cloudhight/testapp > trivyfs.txt"
+                sh "trivy fs . > trivyfs.txt"
             }             
         }
         stage('Deploy to stage') {
