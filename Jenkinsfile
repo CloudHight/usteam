@@ -96,7 +96,7 @@ pipeline{
                   '''
 
                   // SSH into Bastion (via local port 9999), then hop to Ansible server
-                  sshagent(['ansible-key']) {
+                  sshagent(['bastion-key', 'ansible-key']) {
                     sh '''
                       ssh -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
                         "ssh -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \
@@ -144,7 +144,7 @@ pipeline{
                   sleep 5  # Wait for port forwarding to establish
                 '''
                 // SSH through the tunnel to Ansible server on port 22
-                sshagent(['ansible-key']) {
+                sshagent(['bastion-key', 'ansible-key']) {
                   sh '''
                     ssh -o StrictHostKeyChecking=no \
                         -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ubuntu@localhost -p 9999" \
