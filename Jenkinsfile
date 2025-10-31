@@ -1,14 +1,13 @@
-pipeline {
+pipeline{
     agent any
     environment {
-        NEXUS_USER     = credentials('nexus-username')
-        NEXUS_PASSWORD = credentials('nexus-password')
-        NEXUS_REPO     = credentials('nexus-repo')
-        BASTION_IP     = credentials('bastion-ip')
-        ANSIBLE_IP     = credentials('ansible-ip')
-        NVD_API_KEY    = credentials('nvd-key')
-        BASTION_ID     = credentials('bastion-id')
-        AWS_REGION     = 'eu-west-2'
+        NEXUS_USER = credentials('nexus-docker-username')
+        NEXUS_PASSWORD = credentials('nexus-docker-password')
+        NEXUS_REPO = credentials('nexus-docker-url')
+        ANSIBLE_IP = credentials('ansible-ip')
+        NVD_API_KEY= credentials('nvd-key')
+        BASTION_ID= credentials('bastion-id')
+        AWS_REGION= 'us-east-2'
     }
     triggers {
         pollSCM('* * * * *') // Runs every minute
@@ -48,9 +47,9 @@ pipeline {
                 classifier: '',
                 file: 'target/spring-petclinic-2.4.2.war',
                 type: 'war']],
-                credentialsId: 'nexus-cred',
+                credentialsId: 'nexus-maven-creds',
                 groupId: 'Petclinic',
-                nexusUrl: 'nexus.steven12.space',
+                nexusUrl: 'nexus.work-experience2025.buzz',
                 nexusVersion: 'nexus3',
                 protocol: 'https',
                 repository: 'nexus-repo',
@@ -59,7 +58,7 @@ pipeline {
         }
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $NEXUS_REPO/petclinicapps .'
+                sh 'docker build -t $NEXUS_REPO/apppetclinic .'
             }
         }
         stage('Log Into Nexus Docker Repo') {
@@ -69,12 +68,12 @@ pipeline {
         }
         stage('Trivy image Scan') {
             steps {
-                sh "trivy image -f table $NEXUS_REPO/petclinicapps > trivyfs.txt"
+                sh "trivy image -f table $NEXUS_REPO/apppetclinic > trivyfs.txt"
             }
         }
         stage('Push to Nexus Docker Repo') {
             steps {
-                sh 'docker push $NEXUS_REPO/petclinicapps'
+                sh 'docker push $NEXUS_REPO/apppetclinic'
             }
         }
         stage('prune docker images') {
@@ -82,51 +81,44 @@ pipeline {
                 sh 'docker image prune -f'
             }
         }
-        stage('Deploying to Stage Environment') {
+       stage ('Deploying to Stage Environment') {
             steps {
-                script {
-                    def localPort = 9000 + (env.BUILD_NUMBER.toInteger() % 1000)
-                    try {
-                        sh """
-                          nohup aws ssm start-session \
-                            --target ${BASTION_ID} \
-                            --region ${AWS_REGION} \
-                            --document-name AWS-StartPortForwardingSession \
-                            --parameters '{\"portNumber\":[\"22\"],\"localPortNumber\":[\"${localPort}\"]}' \
-                            > /tmp/ssm-stage.log 2>&1 &
-                          echo \$! > /tmp/ssm-stage.pid
-                          sleep 10
-                        """
-                        sshagent(['bastion-key', 'ansible-key']) {
-                            sh """
-                              ssh -o StrictHostKeyChecking=no -p ${localPort} ubuntu@localhost \\
-                                "ssh -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \\
-                                  'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
-                            """
-                        }
-                    } finally {
-                        sh(script: '''#!/bin/sh
-if [ -f /tmp/ssm-stage.pid ]; then
-  pid=$(cat /tmp/ssm-stage.pid)
-  if kill -0 "$pid" >/dev/null 2>&1; then
-    kill "$pid" >/dev/null 2>&1 || true
-  fi
-  rm -f /tmp/ssm-stage.pid /tmp/ssm-stage.log
-fi
-''', returnStdout: true)
-                    }
+               script {
+                  // Start SSM session to bastion with port forwarding
+                  sh '''
+                    aws ssm start-session \
+                      --target ${BASTION_ID} \
+                      --region ${AWS_REGION} \
+                      --document-name AWS-StartPortForwardingSession \
+                      --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
+                      &
+                    sleep 5
+                  '''
+
+                  // SSH into Bastion (via local port 9999), then hop to Ansible server
+                  sshagent(['bastion-key', 'ansible-key']) {
+                    sh '''
+                      ssh -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
+                        "ssh -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \
+                          'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
+                    '''
+                  }
+                  // Kill the SSM session after deploy
+                  sh 'pkill -f "aws ssm start-session"'
                 }
+              }
             }
-        }
+
         stage('check stage website availability') {
             steps {
-                sh "sleep 90"
+                 sh "sleep 90"
+                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://stage.work-experience2025.buzz"
                 script {
-                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.steven12.space", returnStdout: true).trim()
+                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.work-experience2025.buzz", returnStdout: true).trim()
                     if (response == "200") {
-                        slackSend(color: 'good', message: "The stage petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
+                        slackSend(color: 'good', message: "The stage petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack')
                     } else {
-                        slackSend(color: 'danger', message: "The stage petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
+                        slackSend(color: 'danger', message: "The stage petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack')
                     }
                 }
             }
@@ -138,51 +130,43 @@ fi
                 }
             }
         }
-        stage('Deploying to Prod Environment') {
-            steps {
-                script {
-                    def localPort = 9100 + (env.BUILD_NUMBER.toInteger() % 1000)
-                    try {
-                        sh """
-                          nohup aws ssm start-session \
-                            --target ${BASTION_ID} \
-                            --region ${AWS_REGION} \
-                            --document-name AWS-StartPortForwardingSession \
-                            --parameters '{\"portNumber\":[\"22\"],\"localPortNumber\":[\"${localPort}\"]}' \
-                            > /tmp/ssm-prod.log 2>&1 &
-                          echo \$! > /tmp/ssm-prod.pid
-                          sleep 10
-                        """
-                        sshagent(['ansible-key']) {
-                            sh """
-                              ssh -o StrictHostKeyChecking=no -p ${localPort} ubuntu@localhost \\
-                                "ssh -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \\
-                                  'ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml'"
-                            """
-                        }
-                    } finally {
-                        sh(script: '''#!/bin/sh
-if [ -f /tmp/ssm-prod.pid ]; then
-  pid=$(cat /tmp/ssm-prod.pid)
-  if kill -0 "$pid" >/dev/null 2>&1; then
-    kill "$pid" >/dev/null 2>&1 || true
-  fi
-  rm -f /tmp/ssm-prod.pid /tmp/ssm-prod.log
-fi
-''', returnStdout: true)
-                    }
+        stage ('Deploying to prod Environment') {
+          steps {
+              script {
+                // Start SSM session to bastion with port forwarding for SSH (port 22)
+                sh '''
+                  aws ssm start-session \
+                    --target ${BASTION_ID} \
+                    --region ${AWS_REGION} \
+                    --document-name AWS-StartPortForwardingSession \
+                    --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
+                    &
+                  sleep 5  # Wait for port forwarding to establish
+                '''
+                // SSH through the tunnel to Ansible server on port 22
+                sshagent(['bastion-key', 'ansible-key']) {
+                  sh '''
+                    ssh -o StrictHostKeyChecking=no \
+                        -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ubuntu@localhost -p 9999" \
+                        ec2-user@${ANSIBLE_IP} \
+                        "ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml"
+                  '''
                 }
-            }
+                // Terminate the SSM session
+                sh 'pkill -f "aws ssm start-session"'
+              }
+          }
         }
         stage('check prod website availability') {
             steps {
-                sh "sleep 90"
+                 sh "sleep 90"
+                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://prod.work-experience2025.buzz"
                 script {
-                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.steven12.space", returnStdout: true).trim()
+                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.work-experience2025.buzz", returnStdout: true).trim()
                     if (response == "200") {
-                        slackSend(color: 'good', message: "The prod petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
+                        slackSend(color: 'good', message: "The prod petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack')
                     } else {
-                        slackSend(color: 'danger', message: "The prod petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
+                        slackSend(color: 'danger', message: "The prod petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack')
                     }
                 }
             }
