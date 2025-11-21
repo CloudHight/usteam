@@ -7,7 +7,7 @@ pipeline{
         ANSIBLE_IP = credentials('ansible-ip')
         NVD_API_KEY= credentials('nvd-key')
         BASTION_ID= credentials('bastion-id')
-        AWS_REGION= 'us-west-1'
+        AWS_REGION= 'us-east-1'
     }
     triggers {
         pollSCM('* * * * *') // Runs every minute
@@ -47,12 +47,12 @@ pipeline{
                 classifier: '',
                 file: 'target/spring-petclinic-2.4.2.war',
                 type: 'war']],
-                credentialsId: 'nexus-maven-creds',
+                credentialsId: 'nexus-maven-cred',
                 groupId: 'Petclinic',
                 nexusUrl: 'nexus.work-experience-2025.buzz',
                 nexusVersion: 'nexus3',
                 protocol: 'https',
-                repository: 'nexus-repo',
+                repository: 'nexus-maven-repo',
                 version: '1.0'
             }
         }
