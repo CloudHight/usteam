@@ -49,7 +49,7 @@ pipeline{
                 type: 'war']],
                 credentialsId: 'nexus-maven-cred',
                 groupId: 'Petclinic',
-                nexusUrl: 'nexus.work-experience-2025.buzz',
+                nexusUrl: 'nexus.work-experience2025.buzz',
                 nexusVersion: 'nexus3',
                 protocol: 'https',
                 repository: 'nexus-maven-repo',
