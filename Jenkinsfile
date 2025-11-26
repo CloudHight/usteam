@@ -73,7 +73,7 @@ pipeline{
         }
         stage('Push to Nexus Docker Repo') {
             steps {
-                sh 'docker push $NEXUS_REPO/apppetclinic'
+                sh 'docker push $NEXUS_REPO/repository/nexus-docker-repo/apppetclinic'
             }
         }
         stage('prune docker images') {
