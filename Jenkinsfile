@@ -58,7 +58,7 @@ pipeline{
         }
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $NEXUS_REPO/apppetclinic .'
+                sh 'docker build -t $NEXUS_REPO/repository/nexus-docker-repo/apppetclinic .'
             }
         }
         stage('Log Into Nexus Docker Repo') {
@@ -68,7 +68,7 @@ pipeline{
         }
         stage('Trivy image Scan') {
             steps {
-                sh "trivy image -f table $NEXUS_REPO/apppetclinic > trivyfs.txt"
+                sh "trivy image -f table $NEXUS_REPO/repository/nexus-docker-repo/apppetclinic > trivyfs.txt"
             }
         }
         stage('Push to Nexus Docker Repo') {
