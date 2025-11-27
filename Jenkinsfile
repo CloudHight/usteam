@@ -123,6 +123,35 @@ pipeline{
                 }
             }
         }
+        stage('Run Selenium Tests on stage') {
+            steps {
+                echo 'Running Selenium tests on stage...'
+
+                // Ensure Python and pip3 exist (for Amazon Linux or RHEL)
+                sh '''
+                    if ! command -v python3 &> /dev/null; then
+                        echo "Installing Python3..."
+                        sudo yum install -y python3
+                    fi
+
+                    if ! command -v pip3 &> /dev/null; then
+                        echo "Installing pip3..."
+                        sudo yum install -y python3-pip
+                    fi
+
+                    echo "Installing Selenium test dependencies..."
+                    export PATH=$PATH:/var/lib/jenkins/.local/bin
+                    pip3 install --upgrade pip
+                    pip3 install selenium pytest pytest-html
+                '''
+
+                // Run Selenium test
+                sh '''
+                    echo "Executing Selenium test..."
+                    python3 tests/test_homepage.py
+                '''
+            }
+        }
         stage('Request for Approval') {
             steps {
                 timeout(activity: true, time: 10) {
