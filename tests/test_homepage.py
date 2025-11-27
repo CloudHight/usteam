@@ -23,7 +23,7 @@ def test_homepage_loads(driver):
 def test_find_pet_owner(driver):
     driver.get("https://stage.work-experience2025.buzz")
     driver.find_element(By.LINK_TEXT, "FIND OWNERS").click()
-    last_name = "Franklin"   # Update this if needed
+    last_name = "Franklin"
     driver.find_element(By.ID, "lastName").send_keys(last_name)
     driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
     assert last_name in driver.page_source
@@ -48,3 +48,4 @@ def test_add_new_pet(driver):
     time.sleep(1)
 
     assert "Buddy" in driver.page_source
+
