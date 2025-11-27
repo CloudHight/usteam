@@ -148,7 +148,7 @@ pipeline{
                 // Run Selenium test
                 sh '''
                     echo "Executing Selenium test..."
-                    python3 tests/test_homepage.py --html=report.html
+                    pytest tests/test_homepage.py --html=report.html -v
                 '''
             }
         }
