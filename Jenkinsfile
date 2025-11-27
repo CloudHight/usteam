@@ -148,9 +148,17 @@ pipeline{
                 // Run Selenium test
                 sh '''
                     echo "Executing Selenium test..."
-                    python3 tests/test_homepage.py
+                    python3 tests/test_homepage.py --html=report.html
                 '''
             }
+        }
+        stage ('DAST Scan') {
+          steps {
+            sh '''
+              chmod 777 $(pwd)
+              docker run -v $(pwd):/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t https://stage.work-experience2025.buzz -g gen.conf -r testreport.html || true
+            '''
+          }
         }
         stage('Request for Approval') {
             steps {
