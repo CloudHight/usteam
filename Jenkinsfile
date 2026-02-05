@@ -197,7 +197,7 @@ pipeline{
         stage('check prod website availability') {
             steps {
                  sh "sleep 90"
-                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://prod.work-experience2025.buzz"
+                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://prod.odochidevops.space"
                 script {
                     def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.odochidevops.space", returnStdout: true).trim()
                     if (response == "200") {
