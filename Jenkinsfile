@@ -7,7 +7,7 @@ pipeline{
         ANSIBLE_IP = credentials('ansible-ip')
         NVD_API_KEY= credentials('nvd-key')
         BASTION_ID= credentials('bastion-id')
-        AWS_REGION= 'us-east-1'
+        AWS_REGION= 'eu-west-3'
     }
     triggers {
         pollSCM('* * * * *') // Runs every minute
@@ -49,7 +49,7 @@ pipeline{
                 type: 'war']],
                 credentialsId: 'nexus-maven-cred',
                 groupId: 'Petclinic',
-                nexusUrl: 'nexus.work-experience2025.buzz',
+                nexusUrl: 'nexus.odochidevops.space',
                 nexusVersion: 'nexus3',
                 protocol: 'https',
                 repository: 'nexus-maven-repo',
@@ -112,9 +112,9 @@ pipeline{
         stage('check stage website availability') {
             steps {
                  sh "sleep 90"
-                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://stage.work-experience2025.buzz"
+                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://stage.odochidevops.space"
                 script {
-                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.work-experience2025.buzz", returnStdout: true).trim()
+                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.odochidevops.space", returnStdout: true).trim()
                     if (response == "200") {
                         slackSend(color: 'good', message: "The stage petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack')
                     } else {
@@ -156,7 +156,7 @@ pipeline{
           steps {
             sh '''
               chmod 777 $(pwd)
-              docker run -v $(pwd):/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t https://stage.work-experience2025.buzz -g gen.conf -r testreport.html || true
+              docker run -v $(pwd):/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t https://stage.odochidevops.space -g gen.conf -r testreport.html || true
             '''
           }
         }
@@ -199,7 +199,7 @@ pipeline{
                  sh "sleep 90"
                  sh "curl -s -o /dev/null -w \"%{http_code}\" https://prod.work-experience2025.buzz"
                 script {
-                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.work-experience2025.buzz", returnStdout: true).trim()
+                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.odochidevops.space", returnStdout: true).trim()
                     if (response == "200") {
                         slackSend(color: 'good', message: "The prod petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack')
                     } else {
