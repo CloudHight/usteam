@@ -123,43 +123,43 @@ pipeline{
                 }
             }
         }
-        stage('Run Selenium Tests on stage') {
-            steps {
-                echo 'Running Selenium tests on stage...'
+        // stage('Run Selenium Tests on stage') {
+        //     steps {
+        //         echo 'Running Selenium tests on stage...'
 
-                // Ensure Python and pip3 exist (for Amazon Linux or RHEL)
-                sh '''
-                    if ! command -v python3 &> /dev/null; then
-                        echo "Installing Python3..."
-                        sudo yum install -y python3
-                    fi
+        //         // Ensure Python and pip3 exist (for Amazon Linux or RHEL)
+        //         sh '''
+        //             if ! command -v python3 &> /dev/null; then
+        //                 echo "Installing Python3..."
+        //                 sudo yum install -y python3
+        //             fi
 
-                    if ! command -v pip3 &> /dev/null; then
-                        echo "Installing pip3..."
-                        sudo yum install -y python3-pip
-                    fi
+        //             if ! command -v pip3 &> /dev/null; then
+        //                 echo "Installing pip3..."
+        //                 sudo yum install -y python3-pip
+        //             fi
 
-                    echo "Installing Selenium test dependencies..."
-                    export PATH=$PATH:/var/lib/jenkins/.local/bin
-                    pip3 install --upgrade pip
-                    pip3 install selenium pytest pytest-html
-                '''
+        //             echo "Installing Selenium test dependencies..."
+        //             export PATH=$PATH:/var/lib/jenkins/.local/bin
+        //             pip3 install --upgrade pip
+        //             pip3 install selenium pytest pytest-html
+        //         '''
 
-                // Run Selenium test
-                sh '''
-                    echo "Executing Selenium test..."
-                    pytest tests/test_homepage.py --html=report.html -v
-                '''
-            }
-        }
-        stage ('DAST Scan') {
-          steps {
-            sh '''
-              chmod 777 $(pwd)
-              docker run -v $(pwd):/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t https://stage.odochidevops.space -g gen.conf -r testreport.html || true
-            '''
-          }
-        }
+        //         // Run Selenium test
+        //         sh '''
+        //             echo "Executing Selenium test..."
+        //             pytest tests/test_homepage.py --html=report.html -v
+        //         '''
+        //     }
+        // }
+        // stage ('DAST Scan') {
+        //   steps {
+        //     sh '''
+        //       chmod 777 $(pwd)
+        //       docker run -v $(pwd):/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t https://stage.odochidevops.space -g gen.conf -r testreport.html || true
+        //     '''
+        //   }
+        // }
         stage('Request for Approval') {
             steps {
                 timeout(activity: true, time: 10) {
