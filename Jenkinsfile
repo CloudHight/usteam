@@ -30,12 +30,24 @@ pipeline{
         stage('Dependency check') {
             steps {
                 withCredentials([string(credentialsId: 'nvd-key', variable: 'NVD_API_KEY')]) {
-                    dependencyCheck additionalArguments: "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey $NVD_API_KEY",
-                        odcInstallation: 'DP-Check'
-                }
-                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+                    dependencyCheck(
+                        additionalArguments: "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey $NVD_API_KEY",
+                            odcInstallation: 'DP-Check'
+                    )
+             }
+            dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
         }
+
+        // stage('Dependency check') {
+        //     steps {
+        //         withCredentials([string(credentialsId: 'nvd-key', variable: 'NVD_API_KEY')]) {
+        //             dependencyCheck additionalArguments: "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey $NVD_API_KEY",
+        //                 odcInstallation: 'DP-Check'
+        //         }
+        //         dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+        //     }
+        // }
         stage('Build Artifact') {
             steps {
                 sh 'mvn clean package -DskipTests -Dcheckstyle.skip'
