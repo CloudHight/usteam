@@ -37,27 +37,7 @@ pipeline{
     }
 }
 
-        // stage('Dependency check') {
-        //     steps {
-        //         withCredentials([string(credentialsId: 'nvd-key', variable: 'NVD_API_KEY')]) {
-        //             dependencyCheck(
-        //                 additionalArguments: "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey $NVD_API_KEY",
-        //                     odcInstallation: 'DP-Check'
-        //             )
-        //      }
-        //     dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
-        //     }
-        // }
 
-        // stage('Dependency check') {
-        //     steps {
-        //         withCredentials([string(credentialsId: 'nvd-key', variable: 'NVD_API_KEY')]) {
-        //             dependencyCheck additionalArguments: "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey $NVD_API_KEY",
-        //                 odcInstallation: 'DP-Check'
-        //         }
-        //         dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
-        //     }
-        // }
         stage('Build Artifact') {
             steps {
                 sh 'mvn clean package -DskipTests -Dcheckstyle.skip'
@@ -128,69 +108,11 @@ pipeline{
         }
     }
 }
-
-
-        //  stage ('Deploying to Stage Environment') {
-        //     steps {
-        //        script {
-        //           // Start SSM session to bastion with port forwarding
-        //           sh '''
-        //             aws ssm start-session \
-        //               --target ${BASTION_ID} \
-        //               --region ${AWS_REGION} \
-        //               --document-name AWS-StartPortForwardingSession \
-        //               --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
-        //               &
-        //             sleep 25
-        //           '''
-
-        //           // SSH into Bastion (via local port 9999), then hop to Ansible server
-        //           sshagent(['bastion-key', 'ansible-key']) {
-        //             sh '''
-        //               ssh -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
-        //                 "ssh -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \
-        //                   'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
-        //             '''
-        //           }
-    //    stage ('Deploying to Stage Environment') {
-    //         steps {
-    //            script {
-    //               // Start SSM session to bastion with port forwarding
-    //               sh '''
-    //                 aws ssm start-session \
-    //                   --target ${BASTION_ID} \
-    //                   --region ${AWS_REGION} \
-    //                   --document-name AWS-StartPortForwardingSession \
-    //                   --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
-    //                   &
-    //                 sleep 5
-    //               '''
-                   
-
-
-                //   SSH into Bastion (via local port 9999), then hop to Ansible server
-                //   sshagent(['bastion-key', 'ansible-key']) {
-                //     sshagent(['ansible-key']) {
-                //     sh '''
-                //       ssh -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
-                //         "ssh -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \
-                //           'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
-                //     '''
-                //   }
-                // SSH into Bastion (via local port 9999), then hop to Ansible server using agent forwarding
-// sshagent(['ansible-key']) {
-//     sh '''
-//       ssh -A -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
-//         "ssh -A -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \
-//           'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
-//     '''
-// }
-
                   // Kill the SSM session after deploy
                   sh 'pkill -f "aws ssm start-session"'
                 }
               }
-            }
+            
 
         stage('check stage website availability') {
             steps {
@@ -291,6 +213,5 @@ pipeline{
                 }
             }
         }
-    }
+    
 
-}
