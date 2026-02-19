@@ -115,7 +115,7 @@ pipeline{
                       --document-name AWS-StartPortForwardingSession \
                       --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
                       &
-                    sleep 5
+                    sleep 25
                   '''
 
                   // SSH into Bastion (via local port 9999), then hop to Ansible server
