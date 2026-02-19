@@ -87,7 +87,7 @@ pipeline {
     steps {
         script {
 
-            // 1️⃣ Suspend Auto Scaling (CRITICAL FIX)
+            //  Suspend Auto Scaling (CRITICAL FIX)
             sh '''
               aws autoscaling suspend-processes \
                 --auto-scaling-group-name petclinicapp-stage-asg \
@@ -95,7 +95,7 @@ pipeline {
                 --region ${AWS_REGION}
             '''
 
-            // 2️⃣ Start SSM session to bastion with port forwarding
+            //  Start SSM session to bastion with port forwarding
             sh '''
               aws ssm start-session \
                 --target ${BASTION_ID} \
@@ -106,7 +106,7 @@ pipeline {
               sleep 5
             '''
 
-            // 3️⃣ SSH into Bastion → Ansible server (UNCHANGED tutor logic)
+            //  SSH into Bastion → Ansible server 
             sshagent(['bastion-key', 'ansible-key']) {
                 sh '''
                   ssh -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
@@ -115,10 +115,10 @@ pipeline {
                 '''
             }
 
-            // 4️⃣ Kill SSM session (cleanup)
+            // Kill SSM session (cleanup)
             sh 'pkill -f "aws ssm start-session" || true'
 
-            // 5️⃣ Resume Auto Scaling
+            //  Resume Auto Scaling
             sh '''
               aws autoscaling resume-processes \
                 --auto-scaling-group-name petclinicapp-stage-asg \
@@ -195,26 +195,33 @@ pipeline {
                 }
             }
         }
-        stage('Deploying to Prod Environment') {
-            steps {
-                script {
-                    sh """
-                        nohup aws ssm start-session \
-                            --target ${BASTION_ID} \
-                            --region ${AWS_REGION} \
-                            --document-name AWS-StartPortForwardingSession \
-                            --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
-                        > ssm.log 2>&1 &
-                    """
-                    sh 'sleep 15'
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
-                            "ssh -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \
-                                'ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml'"
-                    """
-                    sh 'pkill -f "aws ssm start-session" || true'
+        
+        stage ('Deploying to prod Environment') {
+          steps {
+              script {
+                // Start SSM session to bastion with port forwarding for SSH (port 22)
+                sh '''
+                  aws ssm start-session \
+                    --target ${BASTION_ID} \
+                    --region ${AWS_REGION} \
+                    --document-name AWS-StartPortForwardingSession \
+                    --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
+                    &
+                  sleep 5  # Wait for port forwarding to establish
+                '''
+                // SSH through the tunnel to Ansible server on port 22
+                sshagent(['bastion-key', 'ansible-key']) {
+                  sh '''
+                    ssh -o StrictHostKeyChecking=no \
+                        -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ubuntu@localhost -p 9999" \
+                        ec2-user@${ANSIBLE_IP} \
+                        "ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml"
+                  '''
                 }
-            }
+                // Terminate the SSM session
+                sh 'pkill -f "aws ssm start-session"'
+              }
+          }
         }
         stage('Check Prod Website Availability') {
             steps {
