@@ -181,9 +181,9 @@ pipeline {
                     sh 'sleep 90'
                     def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.odochidevops.space", returnStdout: true).trim()
                     if (response == "200") {
-                        slackSend(color: 'good', message: "Stage Petclinic is UP with HTTP ${response}", tokenCredentialId: 'slack')
+                        slackSend(color: 'good', message: "Stage Petclinic is UP with HTTP ${response}", tokenCredentialId: 'slack-bot-token')
                     } else {
-                        slackSend(color: 'danger', message: "Stage Petclinic is DOWN with HTTP ${response}", tokenCredentialId: 'slack')
+                        slackSend(color: 'danger', message: "Stage Petclinic is DOWN with HTTP ${response}", tokenCredentialId: 'slack-bot-token')
                     }
                 }
             }
@@ -229,9 +229,9 @@ pipeline {
                     sh 'sleep 90'
                     def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.odochidevops.space", returnStdout: true).trim()
                     if (response == "200") {
-                        slackSend(color: 'good', message: "Prod Petclinic is UP with HTTP ${response}", tokenCredentialId: 'slack')
+                        slackSend(color: 'good', message: "Prod Petclinic is UP with HTTP ${response}", tokenCredentialId: 'slack-bot-token')
                     } else {
-                        slackSend(color: 'danger', message: "Prod Petclinic is DOWN with HTTP ${response}", tokenCredentialId: 'slack')
+                        slackSend(color: 'danger', message: "Prod Petclinic is DOWN with HTTP ${response}", tokenCredentialId: 'slack-bot-token')
                     }
                 }
             }
