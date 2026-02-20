@@ -83,35 +83,34 @@ pipeline {
                 sh 'docker image prune -a -f'
             }
         }
-       stage('Deploying to Stage Environment') {
-    steps {
-        script {
+       stage ('Deploying to Stage Environment') {
+            steps {
+               script {
+                  // Start SSM session to bastion with port forwarding
+                  sh '''
+                    aws ssm start-session \
+                      --target ${BASTION_ID} \
+                      --region ${AWS_REGION} \
+                      --document-name AWS-StartPortForwardingSession \
+                      --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
+                      &
+                    sleep 5
+                  '''
 
-            // Suspend Auto Scaling (CRITICAL FIX)
-            sh """
-              aws autoscaling suspend-processes \
-                --auto-scaling-group-name petclinicapp-stage-asg \
-                --scaling-processes AlarmNotification ScheduledActions \
-                --region ${AWS_REGION}
-            """
-
-            // Run Ansible playbook directly on Ansible server
-            sshagent(['ansible-key']) {
-                sh """
-                  ssh -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \
-                    'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'
-                """
+                  // SSH into Bastion (via local port 9999), then hop to Ansible server
+                  sshagent(['bastion-key', 'ansible-key']) {
+                    sh '''
+                      ssh -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
+                        "ssh -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \
+                          'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
+                    '''
+                  }
+                  // Kill the SSM session after deploy
+                  sh 'pkill -f "aws ssm start-session"'
+                }
+              }
             }
 
-            // Resume Auto Scaling
-            sh """
-              aws autoscaling resume-processes \
-                --auto-scaling-group-name petclinicapp-stage-asg \
-                --region ${AWS_REGION}
-            """
-        }
-    }
-}
         //  stage ('Deploying to Stage Environment') {
         //     steps {
         //        script {
