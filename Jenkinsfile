@@ -85,59 +85,31 @@ pipeline {
         }
         
       stage ('Deploying to Stage Environment') {
+    steps {
+        script {
+            sh """
+                aws ssm start-session \
+                  --target ${env.BASTION_ID} \
+                  --region ${env.AWS_REGION} \
+                  --document-name AWS-StartPortForwardingSession \
+                  --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' &
+                SSM_PID=\$!
 
-            steps {
+                sleep 5
+            """
 
-               script {
-
-                  // Start SSM session to bastion with port forwarding
-
-                  sh '''
-
-                    aws ssm start-session \
-
-                      --target ${BASTION_ID} \
-
-                      --region ${AWS_REGION} \
-
-                      --document-name AWS-StartPortForwardingSession \
-
-                      --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
-
-                      &
-
-                    sleep 5
-
-                  '''
-
-
-
-                  // SSH into Bastion (via local port 9999), then hop to Ansible server
-
-                  sshagent(['bastion-key', 'ansible-key']) {
-
-                    sh '''
-
-                      ssh -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
-
-                        "ssh -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \
-
-                          'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
-
-                    '''
-
-                  }
-
-                  // Kill the SSM session after deploy
-
-                  sh 'pkill -f "aws ssm start-session"'
-
-                }
-
-              }
-
+            sshagent(['bastion-key', 'ansible-key']) {
+                sh """
+                    ssh -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
+                      "ssh -o StrictHostKeyChecking=no ec2-user@${env.ANSIBLE_IP} \
+                        'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
+                """
             }
 
+            sh 'pkill -f "aws ssm start-session"'
+        }
+    }
+}
 
 //        stage ('Deploying to Stage Environment') {
 //             steps {
@@ -169,54 +141,6 @@ pipeline {
 //                 }
 //               }
 //             }
-
-        //  stage ('Deploying to Stage Environment') {
-        //     steps {
-        //        script {
-        //           // Start SSM session to bastion with port forwarding
-        //           sh '''
-        //             aws ssm start-session \
-        //               --target ${BASTION_ID} \
-        //               --region ${AWS_REGION} \
-        //               --document-name AWS-StartPortForwardingSession \
-        //               --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
-        //               &
-        //             sleep 5
-        //           '''
-
-                  // SSH into Bastion (via local port 9999), then hop to Ansible server
-        //           sshagent(['bastion-key', 'ansible-key']) {
-        //             sh '''
-        //               ssh -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
-        //                 "ssh -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \
-        //                   'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
-        //             '''
-        //           }
-        //        }
-        //     }
-        // }
-               
-        // stage('Deploying to Stage Environment') {
-        //     steps {
-        //         script {
-        //             sh """
-        //                 nohup aws ssm start-session \
-        //                     --target ${BASTION_ID} \
-        //                     --region ${AWS_REGION} \
-        //                     --document-name AWS-StartPortForwardingSession \
-        //                     --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
-        //                 > ssm.log 2>&1 &
-        //             """
-        //             sh 'sleep 15'
-        //             sh """
-        //                 ssh -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
-        //                     "ssh -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \
-        //                         'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
-        //             """
-        //             sh 'pkill -f "aws ssm start-session" || true'
-        //         }
-        //     }
-        // }
         stage('Check Stage Website Availability') {
             steps {
                 script {
@@ -239,32 +163,57 @@ pipeline {
         }
         
         stage ('Deploying to prod Environment') {
-          steps {
-              script {
-                // Start SSM session to bastion with port forwarding for SSH (port 22)
-                sh '''
-                  aws ssm start-session \
-                    --target ${BASTION_ID} \
-                    --region ${AWS_REGION} \
-                    --document-name AWS-StartPortForwardingSession \
-                    --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
-                    &
-                  sleep 5  # Wait for port forwarding to establish
-                '''
-                // SSH through the tunnel to Ansible server on port 22
-                sshagent(['bastion-key', 'ansible-key']) {
-                  sh '''
+    steps {
+        script {
+            sh """
+                aws ssm start-session \
+                  --target ${env.BASTION_ID} \
+                  --region ${env.AWS_REGION} \
+                  --document-name AWS-StartPortForwardingSession \
+                  --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' &
+                sleep 5
+            """
+
+            sshagent(['bastion-key', 'ansible-key']) {
+                sh """
                     ssh -o StrictHostKeyChecking=no \
                         -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ubuntu@localhost -p 9999" \
-                        ec2-user@${ANSIBLE_IP} \
+                        ec2-user@${env.ANSIBLE_IP} \
                         "ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml"
-                  '''
-                }
-                // Terminate the SSM session
-                sh 'pkill -f "aws ssm start-session"'
-              }
-          }
+                """
+            }
+
+            sh 'pkill -f "aws ssm start-session"'
         }
+    }
+}
+        // stage ('Deploying to prod Environment') {
+        //   steps {
+        //       script {
+                 // Start SSM session to bastion with port forwarding for SSH (port 22)
+        //         sh '''
+        //           aws ssm start-session \
+        //             --target ${BASTION_ID} \
+        //             --region ${AWS_REGION} \
+        //             --document-name AWS-StartPortForwardingSession \
+        //             --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
+        //             &
+        //           sleep 5  # Wait for port forwarding to establish
+        //         '''
+                 // SSH through the tunnel to Ansible server on port 22
+        //         sshagent(['bastion-key', 'ansible-key']) {
+        //           sh '''
+        //             ssh -o StrictHostKeyChecking=no \
+        //                 -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ubuntu@localhost -p 9999" \
+        //                 ec2-user@${ANSIBLE_IP} \
+        //                 "ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml"
+        //           '''
+        //         }
+                 // Terminate the SSM session
+        //         sh 'pkill -f "aws ssm start-session"'
+        //       }
+        //   }
+        // }
         stage('Check Prod Website Availability') {
             steps {
                 script {
