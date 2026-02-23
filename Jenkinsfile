@@ -83,60 +83,97 @@ pipeline {
                 sh 'docker image prune -a -f'
             }
         }
+        stage('Deploying to Stage Environment') {
+    steps {
+        script {
+            try {
+                // Start SSM session to Bastion with port forwarding
+                sh '''
+                    aws ssm start-session \
+                        --target ${BASTION_ID} \
+                        --region ${AWS_REGION} \
+                        --document-name AWS-StartPortForwardingSession \
+                        --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
+                        > ssm.log 2>&1 &
+                    echo $! > ssm.pid
+                    sleep 5
+                '''
 
-    stage ('Deploying to Stage Environment') {
+                // SSH into Bastion (via local port 9999) and then hop to Ansible server
+                sshagent(['bastion-key', 'ansible-key']) {
+                    sh '''
+                        ssh -A -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
+                            "ssh -A -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \
+                                'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
+                    '''
+                }
 
-            steps {
+            } finally {
+                // Safely kill the SSM session
+                sh '''
+                    if [ -f ssm.pid ]; then
+                        kill $(cat ssm.pid) || true
+                        rm -f ssm.pid
+                    fi
+                '''
+            }
+        }
+    }
+}
 
-               script {
+    // stage ('Deploying to Stage Environment') {
+
+    //         steps {
+
+    //            script {
 
                   // Start SSM session to bastion with port forwarding
 
-                  sh '''
+    //               sh '''
 
-                    aws ssm start-session \
+    //                 aws ssm start-session \
 
-                      --target ${BASTION_ID} \
+    //                   --target ${BASTION_ID} \
 
-                      --region ${AWS_REGION} \
+    //                   --region ${AWS_REGION} \
 
-                      --document-name AWS-StartPortForwardingSession \
+    //                   --document-name AWS-StartPortForwardingSession \
 
-                      --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
+    //                   --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
 
-                      &
+    //                   &
 
-                    sleep 5
+    //                 sleep 5
 
-                  '''
+    //               '''
 
 
 
                   // SSH into Bastion (via local port 9999), then hop to Ansible server
 
-                  sshagent(['bastion-key', 'ansible-key']) {
+    //               sshagent(['bastion-key', 'ansible-key']) {
 
-                    sh '''
+    //                 sh '''
 
-                      ssh -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
+    //                   ssh -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
 
-                        "ssh -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \
+    //                     "ssh -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \
 
-                          'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
+    //                       'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
 
-                    '''
+    //                 '''
 
-                  }
+    //               }
 
-                  // Kill the SSM session after deploy
+                   // Kill the SSM session after deploy
 
-                  sh 'pkill -f "aws ssm start-session"'
+    //               sh 'pkill -f "aws ssm start-session"'
 
-                }
+    //             }
 
-              }
+    //           }
 
-            }
+    //         }
 
 
 //         stage('Deploying to Stage Environment') {
