@@ -84,50 +84,105 @@ pipeline {
             }
         }
 
-        stage('Deploying to Stage Environment') {
-  steps {
-    script {
+    stage ('Deploying to Stage Environment') {
+
+            steps {
+
+               script {
+
+                  // Start SSM session to bastion with port forwarding
+
+                  sh '''
+
+                    aws ssm start-session \
+
+                      --target ${BASTION_ID} \
+
+                      --region ${AWS_REGION} \
+
+                      --document-name AWS-StartPortForwardingSession \
+
+                      --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
+
+                      &
+
+                    sleep 5
+
+                  '''
+
+
+
+                  // SSH into Bastion (via local port 9999), then hop to Ansible server
+
+                  sshagent(['bastion-key', 'ansible-key']) {
+
+                    sh '''
+
+                      ssh -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
+
+                        "ssh -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \
+
+                          'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
+
+                    '''
+
+                  }
+
+                  // Kill the SSM session after deploy
+
+                  sh 'pkill -f "aws ssm start-session"'
+
+                }
+
+              }
+
+            }
+
+
+//         stage('Deploying to Stage Environment') {
+//   steps {
+//     script {
 
       // Suspend ASG
-      sh '''
-        aws autoscaling suspend-processes \
-          --auto-scaling-group-name petclinicapp-stage-asg \
-          --scaling-processes AlarmNotification ScheduledActions \
-          --region ${AWS_REGION}
-      '''
+//       sh '''
+//         aws autoscaling suspend-processes \
+//           --auto-scaling-group-name petclinicapp-stage-asg \
+//           --scaling-processes AlarmNotification ScheduledActions \
+//           --region ${AWS_REGION}
+//       '''
 
-      // Start SSM tunnel
-      sh '''
-        aws ssm start-session \
-          --target ${BASTION_ID} \
-          --region ${AWS_REGION} \
-          --document-name AWS-StartPortForwardingSession \
-          --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
-          &
-        sleep 5
-      '''
+       // Start SSM tunnel
+//       sh '''
+//         aws ssm start-session \
+//           --target ${BASTION_ID} \
+//           --region ${AWS_REGION} \
+//           --document-name AWS-StartPortForwardingSession \
+//           --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
+//           &
+//         sleep 5
+//       '''
 
-      // Bastion → Ansible → Deploy
-      sshagent(['bastion-key', 'ansible-key']) {
-        sh '''
-          ssh -A -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
-            "ssh -A -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \
-              'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
-        '''
-      }
+       // Bastion → Ansible → Deploy
+//       sshagent(['bastion-key', 'ansible-key']) {
+//         sh '''
+//           ssh -A -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
+//             "ssh -A -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \
+//               'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
+//         '''
+//       }
 
       // Cleanup SSM
-      sh 'pkill -f "aws ssm start-session" || true'
+//       sh 'pkill -f "aws ssm start-session" || true'
 
-      // Resume ASG
-      sh '''
-        aws autoscaling resume-processes \
-          --auto-scaling-group-name petclinicapp-stage-asg \
-          --region ${AWS_REGION}
-      '''
-    }
-  }
-}
+     // Resume ASG
+//       sh '''
+//         aws autoscaling resume-processes \
+//           --auto-scaling-group-name petclinicapp-stage-asg \
+//           --region ${AWS_REGION}
+//       '''
+//     }
+//   }
+// }
 //         stage('Deploying to Stage Environment') {
 //     steps {
 //         script {
