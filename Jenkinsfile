@@ -1,27 +1,25 @@
-pipeline {
+pipeline{
     agent any
     environment {
         NEXUS_USER = credentials('nexus-docker-username')
         NEXUS_PASSWORD = credentials('nexus-docker-password')
         NEXUS_REPO = credentials('nexus-docker-url')
         ANSIBLE_IP = credentials('ansible-ip')
-        NVD_API_KEY = credentials('nvd-key')
-        BASTION_ID = credentials('bastion-id')
-        AWS_REGION = 'eu-west-3'
+        NVD_API_KEY= credentials('nvd-key')
+        BASTION_ID= credentials('bastion-id')
+        AWS_REGION= 'eu-west-3'
     }
     triggers {
-        pollSCM('* * * * *') // every minute
+        pollSCM('* * * * *') // Runs every minute
     }
     stages {
-        // ================= Code Analysis =================
         stage('Code Analysis') {
             steps {
                 withSonarQubeEnv('sonarqube') {
                     sh 'mvn sonar:sonar'
-                }
+                }   
             }
         }
-
         stage('Quality Gate') {
             steps {
                 timeout(time: 2, unit: 'MINUTES') {
@@ -29,31 +27,26 @@ pipeline {
                 }
             }
         }
-
         stage('Dependency check') {
             steps {
-                dependencyCheck(
-                    additionalArguments: "--scan ./ --disableYarnAudit --disableNodeAudit",
-                    odcInstallation: 'DP-Check'
-                )
+                withCredentials([string(credentialsId: 'nvd-key', variable: 'NVD_API_KEY')]) {
+                    dependencyCheck additionalArguments: "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey $NVD_API_KEY",
+                        odcInstallation: 'DP-Check'
+                }
                 dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
         }
-
         stage('Build Artifact') {
             steps {
                 sh 'mvn clean package -DskipTests -Dcheckstyle.skip'
             }
         }
-
         stage('Push Artifact to Nexus Repo') {
             steps {
-                nexusArtifactUploader artifacts: [[
-                    artifactId: 'spring-petclinic',
-                    classifier: '',
-                    file: 'target/spring-petclinic-2.4.2.war',
-                    type: 'war'
-                ]],
+                nexusArtifactUploader artifacts: [[artifactId: 'spring-petclinic',
+                classifier: '',
+                file: 'target/spring-petclinic-2.4.2.war',
+                type: 'war']],
                 credentialsId: 'nexus-maven-cred',
                 groupId: 'Petclinic',
                 nexusUrl: 'nexus.odochidevops.space',
@@ -63,139 +56,154 @@ pipeline {
                 version: '1.0'
             }
         }
-
-        // ================= Docker Build & Push =================
         stage('Build Docker Image') {
             steps {
                 sh 'docker build -t $NEXUS_REPO/nexus-docker-repo/apppetclinic .'
             }
         }
-
         stage('Log Into Nexus Docker Repo') {
             steps {
                 sh 'docker login --username $NEXUS_USER --password $NEXUS_PASSWORD $NEXUS_REPO'
             }
         }
-
-        // ================= Trivy =================
-        stage('Install Trivy') {
+        stage('Trivy image Scan') {
             steps {
-                sh '''
-                    # Download Trivy
-                    curl -sfL https://github.com/aquasecurity/trivy/releases/download/v0.69.1/trivy_Linux-64bit.tar.gz -o /tmp/trivy.tar.gz
-                    # Extract Trivy
-                    tar -xzf /tmp/trivy.tar.gz -C /tmp
-                    # Move to /usr/local/bin
-                    sudo mv /tmp/trivy /usr/local/bin/
-                    sudo chmod +x /usr/local/bin/trivy
-                    # Verify installation
-                    /usr/local/bin/trivy --version
-                '''
+                sh "trivy image -f table $NEXUS_REPO/nexus-docker-repo/apppetclinic > trivyfs.txt"
             }
         }
-
-        stage('Trivy Image Scan') {
-            steps {
-                withCredentials([string(credentialsId: 'nexus-docker-url', variable: 'NEXUS_REPO')]) {
-                    sh '''
-                        # Run Trivy scan and save output
-                        /usr/local/bin/trivy image -f table "$NEXUS_REPO/nexus-docker-repo/apppetclinic" > trivyfs.txt
-                    '''
-                }
-            }
-        }
-
         stage('Push to Nexus Docker Repo') {
             steps {
                 sh 'docker push $NEXUS_REPO/nexus-docker-repo/apppetclinic'
             }
         }
-
-        stage('Prune Docker Images') {
+        stage('prune docker images') {
             steps {
                 sh 'docker image prune -a -f'
             }
         }
-
-        // ================= Stage Deployment =================
-        stage('Deploying to Stage Environment') {
+       stage ('Deploying to Stage Environment') {
             steps {
-                script {
+               script {
+                  // Start SSM session to bastion with port forwarding
+                  sh '''
+                    aws ssm start-session \
+                      --target ${BASTION_ID} \
+                      --region ${AWS_REGION} \
+                      --document-name AWS-StartPortForwardingSession \
+                      --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
+                      &
+                    sleep 5
+                  '''
+
+                  // SSH into Bastion (via local port 9999), then hop to Ansible server
+                  sshagent(['bastion-key', 'ansible-key']) {
                     sh '''
-                        aws ssm start-session \
-                          --target ${BASTION_ID} \
-                          --region ${AWS_REGION} \
-                          --document-name AWS-StartPortForwardingSession \
-                          --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' &
-                        sleep 5
+                      ssh -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
+                        "ssh -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \
+                          'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
                     '''
-                    sshagent(['bastion-key', 'ansible-key']) {
-                        sh '''
-                          ssh -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
-                            "ssh -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \
-                              'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
-                        '''
-                    }
-                    sh 'pkill -f "aws ssm start-session"'
+                  }
+                  // Kill the SSM session after deploy
+                  sh 'pkill -f "aws ssm start-session"'
                 }
+              }
             }
-        }
 
-        stage('Check Stage Website Availability') {
+        stage('check stage website availability') {
             steps {
+                 sh "sleep 90"
+                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://stage.odochidevops.space"
                 script {
-                    sh 'sleep 90'
                     def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.odochidevops.space", returnStdout: true).trim()
                     if (response == "200") {
-                        slackSend(color: 'good', message: "Stage Petclinic is UP with HTTP ${response}", tokenCredentialId: 'slack-bot-token')
+                        slackSend(color: 'good', message: "The stage petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack')
                     } else {
-                        slackSend(color: 'danger', message: "Stage Petclinic is DOWN with HTTP ${response}", tokenCredentialId: 'slack-bot-token')
+                        slackSend(color: 'danger', message: "The stage petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack')
                     }
                 }
             }
         }
+        // stage('Run Selenium Tests on stage') {
+        //     steps {
+        //         echo 'Running Selenium tests on stage...'
 
+                // Ensure Python and pip3 exist (for Amazon Linux or RHEL)
+        //         sh '''
+        //             if ! command -v python3 &> /dev/null; then
+        //                 echo "Installing Python3..."
+        //                 sudo yum install -y python3
+        //             fi
+
+        //             if ! command -v pip3 &> /dev/null; then
+        //                 echo "Installing pip3..."
+        //                 sudo yum install -y python3-pip
+        //             fi
+
+        //             echo "Installing Selenium test dependencies..."
+        //             export PATH=$PATH:/var/lib/jenkins/.local/bin
+        //             pip3 install --upgrade pip
+        //             pip3 install selenium pytest pytest-html
+        //         '''
+
+                 // Run Selenium test
+        //         sh '''
+        //             echo "Executing Selenium test..."
+        //             pytest tests/test_homepage.py --html=report.html -v
+        //         '''
+        //     }
+        // }
+        // stage ('DAST Scan') {
+        //   steps {
+        //     sh '''
+        //       chmod 777 $(pwd)
+        //       docker run -v $(pwd):/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t https://stage.odochidevops.space -g gen.conf -r testreport.html || true
+        //     '''
+        //   }
+        // }
         stage('Request for Approval') {
             steps {
                 timeout(activity: true, time: 10) {
-                    input message: 'Needs Approval', submitter: 'admin'
+                    input message: 'Needs Approval ', submitter: 'admin'
                 }
             }
         }
-
-        stage('Deploying to Prod Environment') {
-            steps {
-                script {
-                    sh """
-                        aws ssm start-session \
-                          --target ${env.BASTION_ID} \
-                          --region ${env.AWS_REGION} \
-                          --document-name AWS-StartPortForwardingSession \
-                          --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' &
-                        sleep 5
-                    """
-                    sshagent(['bastion-key', 'ansible-key']) {
-                        sh """
-                            ssh -o StrictHostKeyChecking=no \
-                                -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ubuntu@localhost -p 9999" \
-                                ec2-user@${env.ANSIBLE_IP} \
-                                "ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml"
-                        """
-                    }
-                    sh 'pkill -f "aws ssm start-session" || true'
+        stage ('Deploying to prod Environment') {
+          steps {
+              script {
+                // Start SSM session to bastion with port forwarding for SSH (port 22)
+                sh '''
+                  aws ssm start-session \
+                    --target ${BASTION_ID} \
+                    --region ${AWS_REGION} \
+                    --document-name AWS-StartPortForwardingSession \
+                    --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
+                    &
+                  sleep 5  # Wait for port forwarding to establish
+                '''
+                // SSH through the tunnel to Ansible server on port 22
+                sshagent(['bastion-key', 'ansible-key']) {
+                  sh '''
+                    ssh -o StrictHostKeyChecking=no \
+                        -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ubuntu@localhost -p 9999" \
+                        ec2-user@${ANSIBLE_IP} \
+                        "ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml"
+                  '''
                 }
-            }
+                // Terminate the SSM session
+                sh 'pkill -f "aws ssm start-session"'
+              }
+          }
         }
-
-        stage('Check Prod Website Availability') {
+        stage('check prod website availability') {
             steps {
+                 sh "sleep 90"
+                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://prod.odochidevops.space"
                 script {
-                    sh 'sleep 90'
                     def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.odochidevops.space", returnStdout: true).trim()
                     if (response == "200") {
-                        slackSend(color: 'good', message: "Prod Petclinic is UP with HTTP ${response}", tokenCredentialId: 'slack-bot-token')
+                        slackSend(color: 'good', message: "The prod petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack')
                     } else {
-                        slackSend(color: 'danger', message: "Prod Petclinic is DOWN with HTTP ${response}", tokenCredentialId: 'slack-bot-token')
+                        slackSend(color: 'danger', message: "The prod petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack')
                     }
                 }
             }
