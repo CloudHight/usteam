@@ -68,21 +68,34 @@ pipeline {
                 sh 'docker login --username $NEXUS_USER --password $NEXUS_PASSWORD $NEXUS_REPO'
             }
         }
-        stage('Trivy image Scan') {
-    steps {
-        withCredentials([string(credentialsId: 'nexus-docker-url', variable: 'NEXUS_REPO')]) {
-            sh '''
-                # Run Trivy scan and save output
-                /usr/local/bin/trivy image -f table "$NEXUS_REPO/nexus-docker-repo/apppetclinic" > trivyfs.txt
-            '''
+        stage('Install Trivy') {
+            steps {
+                sh '''
+                    # Download Trivy
+                    curl -sfL https://github.com/aquasecurity/trivy/releases/download/v0.69.1/trivy_Linux-64bit.tar.gz -o /tmp/trivy.tar.gz
+                    # Extract Trivy
+                    tar -xzf /tmp/trivy.tar.gz -C /tmp
+                    # Move to /usr/local/bin
+                    sudo mv /tmp/trivy /usr/local/bin/
+                    sudo chmod +x /usr/local/bin/trivy
+                    # Verify installation
+                    /usr/local/bin/trivy --version
+                '''
+            }
+        }
+        stage('Trivy Image Scan') {
+            steps {
+                withCredentials([string(credentialsId: 'nexus-docker-url', variable: 'NEXUS_REPO')]) {
+                    sh '''
+                        # Run Trivy scan and save output
+                        /usr/local/bin/trivy image -f table "$NEXUS_REPO/nexus-docker-repo/apppetclinic" > trivyfs.txt
+                    '''
+                }
+            }
         }
     }
 }
-        // stage('Trivy image Scan') {
-        //     steps {
-        //         sh "trivy image -f table $NEXUS_REPO/nexus-docker-repo/apppetclinic > trivyfs.txt"
-        //     }
-        // }
+
         stage('Push to Nexus Docker Repo') {
             steps {
                 sh 'docker push $NEXUS_REPO/nexus-docker-repo/apppetclinic'
