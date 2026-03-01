@@ -67,10 +67,18 @@ pipeline{
             }
         }
         stage('Trivy image Scan') {
-            steps {
-                sh "trivy image -f table $NEXUS_REPO/nexus-docker-repo/apppetclinic > trivyfs.txt"
-            }
+    steps {
+        withCredentials([string(credentialsId: 'nexus-repo', variable: 'NEXUS_REPO')]) {
+            sh(script: "trivy image -f table $NEXUS_REPO/nexus-docker-repo/apppetclinic > trivyfs.txt")
         }
+    }
+}
+        // stage('Trivy image Scan') {
+        //     steps {
+                
+        //          sh "trivy image -f table $NEXUS_REPO/nexus-docker-repo/apppetclinic > trivyfs.txt"
+        //     }
+        // }
         stage('Push to Nexus Docker Repo') {
             steps {
                 sh 'docker push $NEXUS_REPO/nexus-docker-repo/apppetclinic'
