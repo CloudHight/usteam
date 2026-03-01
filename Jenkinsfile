@@ -13,6 +13,7 @@ pipeline {
         pollSCM('* * * * *') // every minute
     }
     stages {
+        // ================= Code Analysis =================
         stage('Code Analysis') {
             steps {
                 withSonarQubeEnv('sonarqube') {
@@ -20,6 +21,7 @@ pipeline {
                 }
             }
         }
+
         stage('Quality Gate') {
             steps {
                 timeout(time: 2, unit: 'MINUTES') {
@@ -27,6 +29,7 @@ pipeline {
                 }
             }
         }
+
         stage('Dependency check') {
             steps {
                 dependencyCheck(
@@ -36,11 +39,13 @@ pipeline {
                 dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
         }
+
         stage('Build Artifact') {
             steps {
                 sh 'mvn clean package -DskipTests -Dcheckstyle.skip'
             }
         }
+
         stage('Push Artifact to Nexus Repo') {
             steps {
                 nexusArtifactUploader artifacts: [[
@@ -58,16 +63,21 @@ pipeline {
                 version: '1.0'
             }
         }
+
+        // ================= Docker Build & Push =================
         stage('Build Docker Image') {
             steps {
                 sh 'docker build -t $NEXUS_REPO/nexus-docker-repo/apppetclinic .'
             }
         }
+
         stage('Log Into Nexus Docker Repo') {
             steps {
                 sh 'docker login --username $NEXUS_USER --password $NEXUS_PASSWORD $NEXUS_REPO'
             }
         }
+
+        // ================= Trivy =================
         stage('Install Trivy') {
             steps {
                 sh '''
@@ -83,6 +93,7 @@ pipeline {
                 '''
             }
         }
+
         stage('Trivy Image Scan') {
             steps {
                 withCredentials([string(credentialsId: 'nexus-docker-url', variable: 'NEXUS_REPO')]) {
@@ -93,14 +104,13 @@ pipeline {
                 }
             }
         }
-    }
-}
 
         stage('Push to Nexus Docker Repo') {
             steps {
                 sh 'docker push $NEXUS_REPO/nexus-docker-repo/apppetclinic'
             }
         }
+
         stage('Prune Docker Images') {
             steps {
                 sh 'docker image prune -a -f'
@@ -111,18 +121,14 @@ pipeline {
         stage('Deploying to Stage Environment') {
             steps {
                 script {
-                    // Start SSM session to bastion with port forwarding
                     sh '''
                         aws ssm start-session \
                           --target ${BASTION_ID} \
                           --region ${AWS_REGION} \
                           --document-name AWS-StartPortForwardingSession \
-                          --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
-                          &
+                          --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' &
                         sleep 5
                     '''
-
-                    // SSH into Bastion (via local port 9999), then hop to Ansible server
                     sshagent(['bastion-key', 'ansible-key']) {
                         sh '''
                           ssh -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
@@ -130,8 +136,6 @@ pipeline {
                               'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
                         '''
                     }
-
-                    // Kill the SSM session after deploy
                     sh 'pkill -f "aws ssm start-session"'
                 }
             }
@@ -162,7 +166,6 @@ pipeline {
         stage('Deploying to Prod Environment') {
             steps {
                 script {
-                    // Start SSM session to Bastion in background
                     sh """
                         aws ssm start-session \
                           --target ${env.BASTION_ID} \
@@ -171,7 +174,6 @@ pipeline {
                           --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' &
                         sleep 5
                     """
-
                     sshagent(['bastion-key', 'ansible-key']) {
                         sh """
                             ssh -o StrictHostKeyChecking=no \
@@ -180,7 +182,6 @@ pipeline {
                                 "ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml"
                         """
                     }
-
                     sh 'pkill -f "aws ssm start-session" || true'
                 }
             }
@@ -199,6 +200,5 @@ pipeline {
                 }
             }
         }
-
     }
 }
