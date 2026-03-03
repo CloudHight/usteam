@@ -8,6 +8,8 @@ pipeline{
         NVD_API_KEY= credentials('nvd-key')
         BASTION_ID= credentials('bastion-id')
         AWS_REGION= 'us-east-1'
+        DB_HOST         = credentials('DB_HOST')   
+        DB_PORT         = credentials('DB_PORT') 
     }
     triggers {
         pollSCM('* * * * *') // Runs every minute
