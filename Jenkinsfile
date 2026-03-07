@@ -57,18 +57,9 @@ pipeline{
                 version: '1.0'
             }
         }
-        stage('Build Docker Image') {
+        stage('Build Docker image') {
             steps {
-               script {
-            // Clean NEXUS_REPO for Docker (remove https:// and trailing /)
-            def nexusHost = env.NEXUS_REPO.replaceAll('https?://', '').replaceAll('/$', '')
-
-            echo "Using Nexus host: ${nexusHost}"
-
-            // Build Docker image (no explicit tag, defaults to :latest)
-            sh "docker build -t ${nexusHost}/nexus-docker-repo/apppetclinic ."
-
-            }
+                sh 'docker build -t $NEXUS_REPO/apppetclinic .'
             }
         }
         
