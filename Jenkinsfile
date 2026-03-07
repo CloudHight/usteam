@@ -93,13 +93,20 @@ pipeline{
         sh "trivy image -f table $NEXUS_REPO/apppetclinic:latest > trivyfs.txt || true"
     }
 }
-
         stage('Push to Nexus Docker Repo') {
     steps {
-        // Push image to Nexus Docker registry
-        sh 'docker push $NEXUS_REPO/apppetclinic:latest'
+        sh '''
+            echo "Pushing Docker image to Nexus..."
+            docker push $NEXUS_REPO/apppetclinic:latest
+        '''
     }
 }
+//         stage('Push to Nexus Docker Repo') {
+//     steps {
+//         // Push image to Nexus Docker registry
+//         sh 'docker push $NEXUS_REPO/apppetclinic:latest'
+//     }
+// }
 
         stage('Prune Docker images') {
     steps {
