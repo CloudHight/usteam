@@ -57,48 +57,99 @@ pipeline{
                 version: '1.0'
             }
         }
-        stage('Build Docker image') {
-            steps {
-                sh 'docker build -t $NEXUS_REPO/apppetclinic .'
-            }
-        }
-        
-        stage('Log Into Nexus Docker Repo') {
+
+        stage('Debug Workspace') {
     steps {
+        // Print current directory, list files, and NEXUS_REPO value
         sh '''
-        echo $NEXUS_PASSWORD | docker login $NEXUS_REPO --username $NEXUS_USER --password-stdin
+            echo "Current workspace: $(pwd)"
+            echo "NEXUS_REPO=$NEXUS_REPO"
+            ls -la
+            echo "Dockerfile preview:"
+            head -n 5 Dockerfile
         '''
     }
 }
+
+        stage('Build Docker image') {
+    steps {
+        // Build image using tutor-style logic with explicit 'latest' tag
+        sh 'docker build -t $NEXUS_REPO/apppetclinic:latest .'
+    }
+}
+
+        stage('Log Into Nexus Docker Repo') {
+    steps {
+        // Secure login using password-stdin
+        sh '''
+            echo $NEXUS_PASSWORD | docker login $NEXUS_REPO --username $NEXUS_USER --password-stdin
+        '''
+    }
+}
+
+        stage('Trivy image Scan') {
+    steps {
+        // Scan the built image
+        sh "trivy image -f table $NEXUS_REPO/apppetclinic:latest > trivyfs.txt || true"
+    }
+}
+
+        stage('Push to Nexus Docker Repo') {
+    steps {
+        // Push image to Nexus Docker registry
+        sh 'docker push $NEXUS_REPO/apppetclinic:latest'
+    }
+}
+
+        stage('Prune Docker images') {
+    steps {
+        // Clean up local images to save space
+        sh 'docker image prune -a -f'
+    }
+}
+//         stage('Build Docker image') {
+//             steps {
+                
+//                 sh 'docker build -t $NEXUS_REPO/apppetclinic .'
+//             }
+//         }
+        
+//         stage('Log Into Nexus Docker Repo') {
+//     steps {
+//         sh '''
+//         echo $NEXUS_PASSWORD | docker login $NEXUS_REPO --username $NEXUS_USER --password-stdin
+//         '''
+//     }
+// }
 
         // stage('Log Into Nexus Docker Repo') {
         //     steps {
         //         sh 'docker login --username $NEXUS_USER --password $NEXUS_PASSWORD $NEXUS_REPO'
         //     }
         // }
-        stage('Trivy image Scan') {
-    steps {
+//         stage('Trivy image Scan') {
+//     steps {
         
-            sh "trivy image -f table ${env.NEXUS_REPO}/nexus-docker-repo/apppetclinic > trivyfs.txt || true"
+//             sh "trivy image -f table ${env.NEXUS_REPO}/nexus-docker-repo/apppetclinic > trivyfs.txt || true"
         
-    }
-}
+//     }
+// }
         // stage('Trivy image Scan') {
         //     steps {
                 
         //          sh "trivy image -f table $NEXUS_REPO/nexus-docker-repo/apppetclinic > trivyfs.txt"
         //     }
         // }
-        stage('Push to Nexus Docker Repo') {
-            steps {
-                sh 'docker push $NEXUS_REPO/nexus-docker-repo/apppetclinic'
-            }
-        }
-        stage('prune docker images') {
-            steps {
-                sh 'docker image prune -a -f'
-            }
-        }
+        // stage('Push to Nexus Docker Repo') {
+        //     steps {
+        //         sh 'docker push $NEXUS_REPO/nexus-docker-repo/apppetclinic'
+        //     }
+        // }
+        // stage('prune docker images') {
+        //     steps {
+        //         sh 'docker image prune -a -f'
+        //     }
+        // }
        stage ('Deploying to Stage Environment') {
             steps {
                script {
