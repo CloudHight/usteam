@@ -63,10 +63,18 @@ pipeline{
             }
         }
         stage('Log Into Nexus Docker Repo') {
-            steps {
-                sh 'docker login --username $NEXUS_USER --password $NEXUS_PASSWORD $NEXUS_REPO'
-            }
-        }
+    steps {
+        sh '''
+        echo $NEXUS_PASSWORD | docker login $NEXUS_REPO --username $NEXUS_USER --password-stdin
+        '''
+    }
+}
+
+        // stage('Log Into Nexus Docker Repo') {
+        //     steps {
+        //         sh 'docker login --username $NEXUS_USER --password $NEXUS_PASSWORD $NEXUS_REPO'
+        //     }
+        // }
         stage('Trivy image Scan') {
     steps {
         
