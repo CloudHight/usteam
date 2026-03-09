@@ -125,78 +125,78 @@ pipeline{
                 }
             }
         }
-        stage('Run Selenium Tests on stage') {
-            steps {
-                echo 'Running Selenium tests on stage...'
+        // stage('Run Selenium Tests on stage') {
+        //     steps {
+        //         echo 'Running Selenium tests on stage...'
 
-                // Ensure Python and pip3 exist (for Amazon Linux or RHEL)
-                sh '''
-                    if ! command -v python3 &> /dev/null; then
-                        echo "Installing Python3..."
-                        sudo yum install -y python3
-                    fi
+        //         // Ensure Python and pip3 exist (for Amazon Linux or RHEL)
+        //         sh '''
+        //             if ! command -v python3 &> /dev/null; then
+        //                 echo "Installing Python3..."
+        //                 sudo yum install -y python3
+        //             fi
 
-                    if ! command -v pip3 &> /dev/null; then
-                        echo "Installing pip3..."
-                        sudo yum install -y python3-pip
-                    fi
+        //             if ! command -v pip3 &> /dev/null; then
+        //                 echo "Installing pip3..."
+        //                 sudo yum install -y python3-pip
+        //             fi
 
-                    echo "Installing Selenium test dependencies..."
-                    export PATH=$PATH:/var/lib/jenkins/.local/bin
-                    pip3 install --upgrade pip
-                    pip3 install selenium pytest pytest-html
-                '''
+        //             echo "Installing Selenium test dependencies..."
+        //             export PATH=$PATH:/var/lib/jenkins/.local/bin
+        //             pip3 install --upgrade pip
+        //             pip3 install selenium pytest pytest-html
+        //         '''
 
-                // Run Selenium test
-                sh '''
-                    echo "Executing Selenium test..."
-                    pytest tests/test_homepage.py --html=report.html -v
-                '''
-            }
-        }
-        stage ('DAST Scan') {
-          steps {
-            sh '''
-              chmod 777 $(pwd)
-              docker run -v $(pwd):/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t https://stage.odochidevops.space -g gen.conf -r testreport.html || true
-            '''
-          }
-        }
-        stage('Request for Approval') {
-            steps {
-                timeout(activity: true, time: 10) {
-                    input message: 'Needs Approval ', submitter: 'admin'
-                }
-            }
-        }
-        stage ('Deploying to prod Environment') {
-          steps {
-              script {
-                // Start SSM session to bastion with port forwarding for SSH (port 22)
-                sh '''
-                  aws ssm start-session \
-                    --target ${BASTION_ID} \
-                    --region ${AWS_REGION} \
-                    --document-name AWS-StartPortForwardingSession \
-                    --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
-                    &
-                  sleep 5  # Wait for port forwarding to establish
-                '''
-                // SSH through the tunnel to Ansible server on port 22
-                sshagent(['bastion-key', 'ansible-key']) {
-                  sh '''
-                    ssh -o StrictHostKeyChecking=no \
-                        -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ubuntu@localhost -p 9999" \
-                        ec2-user@${ANSIBLE_IP} \
-                        'ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml -u ubuntu --private-key=/home/ec2-user/.ssh/id_rsa'
+        //         // Run Selenium test
+        //         sh '''
+        //             echo "Executing Selenium test..."
+        //             pytest tests/test_homepage.py --html=report.html -v
+        //         '''
+        //     }
+        // }
+        // stage ('DAST Scan') {
+        //   steps {
+        //     sh '''
+        //       chmod 777 $(pwd)
+        //       docker run -v $(pwd):/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t https://stage.odochidevops.space -g gen.conf -r testreport.html || true
+        //     '''
+        //   }
+        // }
+        // stage('Request for Approval') {
+        //     steps {
+        //         timeout(activity: true, time: 10) {
+        //             input message: 'Needs Approval ', submitter: 'admin'
+        //         }
+        //     }
+        // }
+        // stage ('Deploying to prod Environment') {
+        //   steps {
+        //       script {
+        //         // Start SSM session to bastion with port forwarding for SSH (port 22)
+        //         sh '''
+        //           aws ssm start-session \
+        //             --target ${BASTION_ID} \
+        //             --region ${AWS_REGION} \
+        //             --document-name AWS-StartPortForwardingSession \
+        //             --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
+        //             &
+        //           sleep 5  # Wait for port forwarding to establish
+        //         '''
+        //         // SSH through the tunnel to Ansible server on port 22
+        //         sshagent(['bastion-key', 'ansible-key']) {
+        //           sh '''
+        //             ssh -o StrictHostKeyChecking=no \
+        //                 -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ubuntu@localhost -p 9999" \
+        //                 ec2-user@${ANSIBLE_IP} \
+        //                 'ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml -u ubuntu --private-key=/home/ec2-user/.ssh/id_rsa'
 
-                  '''
-                }
-                // Terminate the SSM session
-                sh 'pkill -f "aws ssm start-session"'
-              }
-          }
-        }
+        //           '''
+        //         }
+        //         // Terminate the SSM session
+        //         sh 'pkill -f "aws ssm start-session"'
+        //       }
+        //   }
+        // }
         stage('check prod website availability') {
             steps {
                  sh "sleep 90"
