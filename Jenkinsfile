@@ -56,21 +56,21 @@ pipeline{
                 version: '1.0'
             }
         }
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    // Ensure lowercase and valid Docker image name
-                    def dockerImage = "${env.NEXUS_REPO}/nexus-docker-repo/apppetclinic".toLowerCase()
-                    def dockerTag = "latest"
-                    sh "docker build -t ${dockerImage}:${dockerTag} ."
-                }
-            }
-        }
         // stage('Build Docker Image') {
         //     steps {
-        //         sh 'docker build -t $NEXUS_REPO/nexus-docker-repo/apppetclinic:latest .'
+        //         script {
+        //             // Ensure lowercase and valid Docker image name
+        //             def dockerImage = "${env.NEXUS_REPO}/nexus-docker-repo/apppetclinic".toLowerCase()
+        //             def dockerTag = "latest"
+        //             sh "docker build -t ${dockerImage}:${dockerTag} ."
+        //         }
         //     }
         // }
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t $NEXUS_REPO/nexus-docker-repo/apppetclinic:latest .'
+            }
+        }
         stage('Log Into Nexus Docker Repo') {
             steps {
                 sh 'docker login --username $NEXUS_USER --password $NEXUS_PASSWORD $NEXUS_REPO'
