@@ -64,7 +64,11 @@ pipeline{
         }
         stage('Log Into Nexus Docker Repo') {
             steps {
-                sh 'docker login --username $NEXUS_USER --password $NEXUS_PASSWORD $NEXUS_REPO'
+                sh '''
+                echo $DOCKER_PASS | docker login 13.39.161.206:8085 \
+                --username $DOCKER_USER \
+                --password-stdin
+                '''
             }
         }
         stage('Trivy image Scan') {
