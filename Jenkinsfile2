@@ -48,10 +48,12 @@ pipeline {
 
         stage('Push Artifact to Nexus Repo') {
             steps {
-                nexusArtifactUploader artifacts: [[artifactId: 'spring-petclinic',
-                classifier: '',
-                file: 'target/spring-petclinic-2.4.2.war',
-                type: 'war']],
+                nexusArtifactUploader artifacts: [[
+                    artifactId: 'spring-petclinic',
+                    classifier: '',
+                    file: 'target/spring-petclinic-2.4.2.war',
+                    type: 'war'
+                ]],
                 credentialsId: 'nexus-cred',
                 groupId: 'Petclinic',
                 nexusUrl: 'nexus.everythingops.io',
@@ -64,9 +66,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh '''
-                docker build -t 13.39.161.206:8085/petclinicapps:latest .
-                '''
+                sh 'docker build -t 13.39.161.206:8085/petclinicapps:latest .'
             }
         }
 
@@ -79,8 +79,7 @@ pipeline {
                 )]) {
                     sh '''
                     echo "$DOCKER_PASS" | docker login 13.39.161.206:8085 \
-                    --username "$DOCKER_USER" \
-                    --password-stdin
+                    --username "$DOCKER_USER" --password-stdin
                     '''
                 }
             }
@@ -88,17 +87,13 @@ pipeline {
 
         stage('Trivy Image Scan') {
             steps {
-                sh '''
-                trivy image --insecure -f table 13.39.161.206:8085/petclinicapps:latest
-                '''
+                sh 'trivy image --insecure -f table 13.39.161.206:8085/petclinicapps:latest'
             }
         }
 
         stage('Push to Nexus Docker Repo') {
             steps {
-                sh '''
-                docker push 13.39.161.206:8085/petclinicapps:latest
-                '''
+                sh 'docker push 13.39.161.206:8085/petclinicapps:latest'
             }
         }
 
@@ -108,19 +103,22 @@ pipeline {
             }
         }
 
-        stage('Deploying to Stage Environment') {
+        stage('Deploy to Stage Environment') {
             steps {
                 script {
+                    // Start SSM session in background and save PID
                     sh '''
-                    aws ssm start-session \
+                    nohup aws ssm start-session \
                       --target ${BASTION_ID} \
                       --region ${AWS_REGION} \
                       --document-name AWS-StartPortForwardingSession \
                       --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
-                      &
-                    sleep 5
+                      > ssm.log 2>&1 &
+                    echo $! > ssm.pid
+                    sleep 10
                     '''
 
+                    // SSH hop via Bastion to Ansible server
                     sshagent(['bastion-key', 'ansible-key']) {
                         sh '''
                         ssh -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
@@ -129,14 +127,15 @@ pipeline {
                         '''
                     }
 
-                    sh 'pkill -f "aws ssm start-session"'
+                    // Kill the background SSM session safely
+                    sh 'kill $(cat ssm.pid) || true'
                 }
             }
         }
 
         stage('Check Stage Website') {
             steps {
-                sh "sleep 90"
+                sleep 90
                 script {
                     def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.everythingops.io", returnStdout: true).trim()
                     if (response == "200") {
@@ -156,17 +155,18 @@ pipeline {
             }
         }
 
-        stage('Deploying to Prod Environment') {
+        stage('Deploy to Prod Environment') {
             steps {
                 script {
                     sh '''
-                    aws ssm start-session \
+                    nohup aws ssm start-session \
                       --target ${BASTION_ID} \
                       --region ${AWS_REGION} \
                       --document-name AWS-StartPortForwardingSession \
                       --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
-                      &
-                    sleep 5
+                      > ssm.log 2>&1 &
+                    echo $! > ssm.pid
+                    sleep 10
                     '''
 
                     sshagent(['ansible-key']) {
@@ -178,14 +178,14 @@ pipeline {
                         '''
                     }
 
-                    sh 'pkill -f "aws ssm start-session"'
+                    sh 'kill $(cat ssm.pid) || true'
                 }
             }
         }
 
         stage('Check Prod Website') {
             steps {
-                sh "sleep 90"
+                sleep 90
                 script {
                     def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.everythingops.io", returnStdout: true).trim()
                     if (response == "200") {
@@ -196,5 +196,6 @@ pipeline {
                 }
             }
         }
+
     }
 }
