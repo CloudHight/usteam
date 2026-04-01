@@ -106,13 +106,14 @@ pipeline {
         stage('Deploy to Stage Environment') {
             steps {
                 script {
-                    // Start SSM port forwarding in background
+                    // Start SSM session for Stage in background without TTY
                     sh '''
                     nohup aws ssm start-session \
                       --target ${BASTION_ID} \
                       --region ${AWS_REGION} \
                       --document-name AWS-StartPortForwardingSession \
                       --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
+                      --no-tty \
                       > ssm_stage.log 2>&1 &
                     echo $! > ssm_stage.pid
                     sleep 10
@@ -127,7 +128,7 @@ pipeline {
                         '''
                     }
 
-                    // Kill SSM session after deployment
+                    // Kill Stage SSM session safely
                     sh 'kill $(cat ssm_stage.pid) || true'
                 }
             }
@@ -158,29 +159,29 @@ pipeline {
         stage('Deploy to Prod Environment') {
             steps {
                 script {
-                    // Start SSM port forwarding in background
+                    // Start SSM session for Prod in background without TTY
                     sh '''
                     nohup aws ssm start-session \
                       --target ${BASTION_ID} \
                       --region ${AWS_REGION} \
                       --document-name AWS-StartPortForwardingSession \
                       --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
+                      --no-tty \
                       > ssm_prod.log 2>&1 &
                     echo $! > ssm_prod.pid
                     sleep 10
                     '''
 
-                    // SSH hop via Bastion to Ansible server
                     sshagent(['ansible-key']) {
                         sh '''
                         ssh -o StrictHostKeyChecking=no \
-                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ubuntu@localhost -p 9999" \
-                            ec2-user@${ANSIBLE_IP} \
-                            "ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml"
+                        -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ubuntu@localhost -p 9999" \
+                        ec2-user@${ANSIBLE_IP} \
+                        "ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml"
                         '''
                     }
 
-                    // Kill SSM session after deployment
+                    // Kill Prod SSM session safely
                     sh 'kill $(cat ssm_prod.pid) || true'
                 }
             }
