@@ -69,7 +69,9 @@ pipeline{
         }
         stage('Trivy image Scan') {
             steps {
-                sh "trivy image -f table $NEXUS_REPO/petclinicapps > trivyfs.txt"
+                sh '''
+                trivy image -f table $NEXUS_REPO/petclinicapps
+                '''
             }
         }
         stage('Push to Nexus Docker Repo') {
