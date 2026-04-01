@@ -20,12 +20,15 @@ pipeline{
                 }
             }
         }
-        stage('Dependency Check') {
-            steps {
-                dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
-                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
-            }
-        }
+        stage('Dependency check') {
+              steps {
+                  withCredentials([string(credentialsId: 'nvd-key', variable: 'NVD_API_KEY')]) {
+                      dependencyCheck additionalArguments: "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey $NVD_API_KEY", 
+                          odcInstallation: 'DP-Check'
+                  }
+                  dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+              }
+          }
         // stage('Test Code') {
         //     steps {
         //         sh 'mvn test -Dcheckstyle.skip'
