@@ -1,62 +1,203 @@
-stage('Deploying to Stage Environment') {
-    steps {
-        script {
-            // Start SSM port forwarding in background
-            sh '''
-            nohup aws ssm start-session \
-              --target ${BASTION_ID} \
-              --region ${AWS_REGION} \
-              --document-name AWS-StartPortForwardingSession \
-              --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
-              --quiet \
-              > ssm_stage.log 2>&1 &
-            echo $! > ssm_stage.pid
-            sleep 10
-            '''
+pipeline {
+    agent any
 
-            // SSH through the tunnel to Ansible server
-            sshagent(['bastion-key', 'ansible-key']) {
-                sh '''
-                ssh -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
-                  "ssh -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \
-                  'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
-                '''
-            }
-
-            // Kill SSM port forwarding after deployment
-            sh 'kill $(cat ssm_stage.pid) || true'
-        }
+    environment {
+        BASTION_IP = credentials('bastion-ip')
+        ANSIBLE_IP = credentials('ansible-ip')
+        BASTION_ID = credentials('bastion-id')
+        AWS_REGION = 'eu-west-3'
     }
-}
 
-stage('Deploying to Prod Environment') {
-    steps {
-        script {
-            // Start SSM port forwarding in background
-            sh '''
-            nohup aws ssm start-session \
-              --target ${BASTION_ID} \
-              --region ${AWS_REGION} \
-              --document-name AWS-StartPortForwardingSession \
-              --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
-              --quiet \
-              > ssm_prod.log 2>&1 &
-            echo $! > ssm_prod.pid
-            sleep 10
-            '''
+    triggers {
+        pollSCM('* * * * *')
+    }
 
-            // SSH through the tunnel to Ansible server
-            sshagent(['ansible-key']) {
-                sh '''
-                ssh -o StrictHostKeyChecking=no \
-                    -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ubuntu@localhost -p 9999" \
-                    ec2-user@${ANSIBLE_IP} \
-                    "ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml"
-                '''
+    stages {
+
+        stage('Code Analysis') {
+            steps {
+                withSonarQubeEnv('sonarqube') {
+                    sh 'mvn sonar:sonar'
+                }
             }
+        }
 
-            // Kill SSM port forwarding after deployment
-            sh 'kill $(cat ssm_prod.pid) || true'
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 2, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+        stage('Dependency check') {
+            steps {
+                withCredentials([string(credentialsId: 'nvd-key', variable: 'NVD_API_KEY')]) {
+                    dependencyCheck additionalArguments: "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey $NVD_API_KEY",
+                        odcInstallation: 'DP-Check'
+                }
+                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+            }
+        }
+
+        stage('Build Artifact') {
+            steps {
+                sh 'mvn clean package -DskipTests -Dcheckstyle.skip'
+            }
+        }
+
+        stage('Push Artifact to Nexus Repo') {
+            steps {
+                nexusArtifactUploader artifacts: [[
+                    artifactId: 'spring-petclinic',
+                    classifier: '',
+                    file: 'target/spring-petclinic-2.4.2.war',
+                    type: 'war'
+                ]],
+                credentialsId: 'nexus-cred',
+                groupId: 'Petclinic',
+                nexusUrl: 'nexus.everythingops.io',
+                nexusVersion: 'nexus3',
+                protocol: 'https',
+                repository: 'nexus-repo',
+                version: '1.0'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t 13.39.161.206:8085/petclinicapps:latest .'
+            }
+        }
+
+        stage('Login to Nexus Docker Repo') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'nexus-cred',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh '''
+                    echo "$DOCKER_PASS" | docker login 13.39.161.206:8085 \
+                    --username "$DOCKER_USER" --password-stdin
+                    '''
+                }
+            }
+        }
+
+        stage('Trivy Image Scan') {
+            steps {
+                sh 'trivy image --insecure -f table 13.39.161.206:8085/petclinicapps:latest'
+            }
+        }
+
+        stage('Push to Nexus Docker Repo') {
+            steps {
+                sh 'docker push 13.39.161.206:8085/petclinicapps:latest'
+            }
+        }
+
+        stage('Prune Docker Images') {
+            steps {
+                sh 'docker image prune -f'
+            }
+        }
+
+        stage('Deploy to Stage Environment') {
+            steps {
+                script {
+                    // Start SSM port forwarding in background
+                    sh '''
+                    nohup aws ssm start-session \
+                      --target ${BASTION_ID} \
+                      --region ${AWS_REGION} \
+                      --document-name AWS-StartPortForwardingSession \
+                      --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
+                      > ssm_stage.log 2>&1 &
+                    echo $! > ssm_stage.pid
+                    sleep 10
+                    '''
+
+                    // SSH hop via Bastion to Ansible server
+                    sshagent(['bastion-key', 'ansible-key']) {
+                        sh '''
+                        ssh -o StrictHostKeyChecking=no -p 9999 ubuntu@localhost \
+                          "ssh -o StrictHostKeyChecking=no ec2-user@${ANSIBLE_IP} \
+                          'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
+                        '''
+                    }
+
+                    // Kill SSM session after deployment
+                    sh 'kill $(cat ssm_stage.pid) || true'
+                }
+            }
+        }
+
+        stage('Check Stage Website') {
+            steps {
+                sleep 90
+                script {
+                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.everythingops.io", returnStdout: true).trim()
+                    if (response == "200") {
+                        slackSend(color: 'good', message: "Stage app is UP (${response})", tokenCredentialId: 'slack-cred')
+                    } else {
+                        slackSend(color: 'danger', message: "Stage app is DOWN (${response})", tokenCredentialId: 'slack-cred')
+                    }
+                }
+            }
+        }
+
+        stage('Request for Approval') {
+            steps {
+                timeout(activity: true, time: 10) {
+                    input message: 'Needs Approval', submitter: 'admin'
+                }
+            }
+        }
+
+        stage('Deploy to Prod Environment') {
+            steps {
+                script {
+                    // Start SSM port forwarding in background
+                    sh '''
+                    nohup aws ssm start-session \
+                      --target ${BASTION_ID} \
+                      --region ${AWS_REGION} \
+                      --document-name AWS-StartPortForwardingSession \
+                      --parameters '{"portNumber":["22"],"localPortNumber":["9999"]}' \
+                      > ssm_prod.log 2>&1 &
+                    echo $! > ssm_prod.pid
+                    sleep 10
+                    '''
+
+                    // SSH hop via Bastion to Ansible server
+                    sshagent(['ansible-key']) {
+                        sh '''
+                        ssh -o StrictHostKeyChecking=no \
+                            -o ProxyCommand="ssh -W %h:%p -o StrictHostKeyChecking=no ubuntu@localhost -p 9999" \
+                            ec2-user@${ANSIBLE_IP} \
+                            "ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml"
+                        '''
+                    }
+
+                    // Kill SSM session after deployment
+                    sh 'kill $(cat ssm_prod.pid) || true'
+                }
+            }
+        }
+
+        stage('Check Prod Website') {
+            steps {
+                sleep 90
+                script {
+                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.everythingops.io", returnStdout: true).trim()
+                    if (response == "200") {
+                        slackSend(color: 'good', message: "Prod app is UP (${response})", tokenCredentialId: 'slack-cred')
+                    } else {
+                        slackSend(color: 'danger', message: "Prod app is DOWN (${response})", tokenCredentialId: 'slack-cred')
+                    }
+                }
+            }
         }
     }
 }
