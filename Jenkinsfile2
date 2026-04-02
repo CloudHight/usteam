@@ -112,21 +112,32 @@ pipeline {
 
         // ------------------- STAGE DEPLOY -------------------
         stage('Deploy to Stage Environment') {
-            steps {
-                script {
-                    // Step 1: Get Ansible server IP
-                    def ansibleIP = sh(
-                        script: "aws ssm describe-instance-information --region ${AWS_REGION} --query \"InstanceInformationList[?InstanceId=='${ANSIBLE_INSTANCE_ID}'].IPAddress\" --output text",
-                        returnStdout: true
-                    ).trim()
+           steps {
+               script {
+                   try {
+                       // Step 1: Get Ansible server IP
+                       def ansibleIP = sh(
+                           script: "aws ssm describe-instance-information --region ${AWS_REGION} --query \"InstanceInformationList[?InstanceId=='${ANSIBLE_INSTANCE_ID}'].IPAddress\" --output text",
+                           returnStdout: true
+                       ).trim()
         
-                    echo "Ansible server IP: ${ansibleIP}"
+                       // Step 2: SSH into the Ansible server and run the playbook
+                       def result = sh(script: """
+                           ssh -o StrictHostKeyChecking=no -i /home/ubuntu/.ssh/id_rsa ec2-user@${ansibleIP} "
+                               /usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml
+                           "
+                       """, returnStatus: true)
         
-                    // Step 2: Run Ansible playbook as ubuntu user
-                    // Use sh with a single command to avoid quote nesting issues
-                    sh "sudo -i -u ubuntu ssh -o StrictHostKeyChecking=no -i /home/ubuntu/.ssh/id_rsa ec2-user@${ansibleIP} '/usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
-                }
-            }
+                       // Check if the command was successful
+                       if (result != 0) {
+                           error "Deployment failed with exit code: ${result}"
+                       }
+        
+                   } catch (Exception e) {
+                       error "Error during deployment: ${e.message}"
+                   }
+               }
+           }
         }
                 
         stage('Request for Approval') {
