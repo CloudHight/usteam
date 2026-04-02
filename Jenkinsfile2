@@ -112,30 +112,12 @@ pipeline {
         }
 
         // ------------------- STAGE DEPLOY -------------------
-        stage('Deploy to Stage Environment') {
-           steps {
-               script {
-                   try {
-                       // Step 1: Get Ansible server IP
-                       def ansibleIP = sh(
-                           script: "aws ssm describe-instance-information --region ${AWS_REGION} --query \"InstanceInformationList[?InstanceId=='${ANSIBLE_INSTANCE_ID}'].PrivateIpAddress\" --output text",
-                           returnStdout: true
-                       ).trim()
-        
-                       // Step 2: Use Ansible credentials to deploy
-                       withCredentials([usernamePassword(credentialsId: 'ansible-cred', usernameVariable: 'ANSIBLE_USER', passwordVariable: 'ANSIBLE_PASS')]) {
-                           sh """
-                               ansible-playbook -i ${ansibleIP}, /etc/ansible/deployment.yml \
-                               --user \$ANSIBLE_USER \
-                               --private-key /path/to/private/key \
-                               --extra-vars "ansible_password=\$ANSIBLE_PASS"
-                           """
-                       }
-                   } catch (Exception e) {
-                       error("Deployment failed: ${e.message}")
-                   }
-               }
-           }
+        stage('Deploy to stage') {
+            steps {
+                sshagent(['ansible-key']) {
+                    sh 'ssh -t -t ec2-user@10.0.2.172 -o strictHostKeyChecking=no "ansible-playbook -i /etc/ansible/stage-hosts /etc/ansible/deployment.yml"'
+                }
+            }
         }
                 
         stage('Request for Approval') {
