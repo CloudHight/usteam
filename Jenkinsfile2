@@ -114,32 +114,23 @@ pipeline {
         stage('Deploy to Stage Environment') {
             steps {
                 script {
-                    sshagent(['ansible-key']) {
-                        sh '''
-                            ssh -o StrictHostKeyChecking=no \
-                                -o ProxyCommand="aws ssm start-session --target $BASTION_ID --region $AWS_REGION --document-name AWS-StartSSHSession --parameters 'portNumber=%p'" \
-                                ec2-user@$ANSIBLE_IP \
-                                "/usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"
-                        '''
-                    }
+                    // Define variables
+                    def instanceId = credentials('ansible-id') // Your EC2 ID
+                    def region = 'eu-west-3'
+        
+                    // Run Ansible playbook via SSM
+                    sh """
+                    aws ssm send-command \
+                        --targets "Key=InstanceIds,Values=${instanceId}" \
+                        --document-name "AWS-RunShellScript" \
+                        --comment "Run Ansible playbook" \
+                        --parameters 'commands=["ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"]' \
+                        --region ${region} \
+                        --output json
+                    """
                 }
             }
         }
-
-        stage('Check Stage Website') {
-            steps {
-                sleep 90
-                script {
-                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.everythingops.io", returnStdout: true).trim()
-                    if (response == "200") {
-                        slackSend(color: 'good', message: "Stage app is UP (${response})", tokenCredentialId: 'slack-cred')
-                    } else {
-                        slackSend(color: 'danger', message: "Stage app is DOWN (${response})", tokenCredentialId: 'slack-cred')
-                    }
-                }
-            }
-        }
-
         stage('Request for Approval') {
             steps {
                 timeout(activity: true, time: 10) {
