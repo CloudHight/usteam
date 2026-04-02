@@ -114,11 +114,11 @@ pipeline {
         stage('Deploy to Stage Environment') {
             steps {
                 script {
-                    // Get the EC2 instance ID from Jenkins credentials
-                    def instanceId = credentials('ansible-id') // this must be the raw instance ID: i-xxxxxxx
+                    // 'ansible-id' is a Jenkins secret text credential that stores the instance ID
+                    def instanceId = credentials('ansible-id')  
                     def region = 'eu-west-3'
         
-                    // Run the playbook via SSM
+                    // Run the SSM command using the raw instance ID
                     sh """
                     aws ssm send-command \
                         --targets "Key=InstanceIds,Values=${instanceId}" \
