@@ -114,13 +114,13 @@ pipeline {
         stage('Deploy to Stage Environment') {
             steps {
                 script {
-                    // Get Ansible server IP from SSM
+                    // Get the Ansible server IP from SSM
                     def ansibleIP = sh(
                         script: "aws ssm describe-instance-information --region $AWS_REGION --query \"InstanceInformationList[?InstanceId=='$ANSIBLE_INSTANCE_ID'].IPAddress\" --output text",
                         returnStdout: true
                     ).trim()
         
-                    // Use sshagent to inject private key stored in Jenkins
+                    // SSH and run ansible-playbook
                     sshagent(['ansible-key']) {
                         sh """
                             ssh -o StrictHostKeyChecking=no \\
@@ -132,7 +132,7 @@ pipeline {
                 }
             }
         }
-
+                
         stage('Request for Approval') {
             steps {
                 timeout(activity: true, time: 10) {
