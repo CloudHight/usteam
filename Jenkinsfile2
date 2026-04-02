@@ -111,7 +111,7 @@ pipeline {
         }
 
         // ------------------- STAGE DEPLOY -------------------
-        stage('Deploy to Stage Environment') {
+        stage('Deploy to Prod Environment') {
             steps {
                 script {
                     sshagent(['ansible-key']) {
@@ -119,12 +119,13 @@ pipeline {
                             ssh -o StrictHostKeyChecking=no \
                                 -o ProxyCommand="aws ssm start-session --target $BASTION_ID --region $AWS_REGION --document-name AWS-StartSSHSession --parameters 'portNumber=%p'" \
                                 ec2-user@$ANSIBLE_IP \
-                                "/usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"
+                                "bash -l -c 'ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml'"
                         '''
                     }
                 }
             }
         }
+
         stage('Request for Approval') {
             steps {
                 timeout(activity: true, time: 10) {
