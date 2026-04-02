@@ -115,7 +115,7 @@ pipeline {
             steps {
                 script {
                     // Extract the raw EC2 instance ID from Jenkins credentials
-                    def instanceId = credentials('ansible-id')  // this should be the actual ID like i-0123456789abcdef0
+                    def instanceId = 'i-085ed436620c4af77'  // this should be the actual ID like i-0123456789abcdef0
                     def region = 'eu-west-3'
         
                     // Use triple quotes to interpolate Groovy variables in shell
