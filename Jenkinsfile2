@@ -111,7 +111,7 @@ pipeline {
         }
 
         // ------------------- STAGE DEPLOY -------------------
-        stage('Deploy to Prod Environment') {
+        stage('Deploy to stage Environment') {
             steps {
                 script {
                     sshagent(['ansible-key']) {
