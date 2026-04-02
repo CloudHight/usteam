@@ -2,8 +2,9 @@ pipeline {
     agent any
 
     environment {
+        BASTION_IP = credentials('bastion-ip')
+        ANSIBLE_IP = credentials('ansible-ip')
         BASTION_ID = credentials('bastion-id')
-        ANSIBLE_INSTANCE_ID = credentials('ansible-id')
         AWS_REGION = 'eu-west-3'
     }
 
@@ -29,13 +30,20 @@ pipeline {
             }
         }
 
-        stage('Dependency Check') {
+        // ------------------- DEPENDENCY CHECK -------------------
+        stage('Dependency check') {
             steps {
                 withCredentials([string(credentialsId: 'nvd-key', variable: 'NVD_API_KEY')]) {
-                    dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey ${NVD_API_KEY}',
-                                    odcInstallation: 'DP-Check'
-                    dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+                    dependencyCheck(
+                        odcInstallation: 'DP-Check', // Must match your Jenkins tool name
+                        additionalArguments: '''--scan ./ \
+                                                --disableYarnAudit \
+                                                --disableNodeAudit \
+                                                --nvdApiKey $NVD_API_KEY \
+                                                --data /var/lib/jenkins/dependency-check'''
+                    )
                 }
+                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
         }
 
@@ -102,47 +110,22 @@ pipeline {
             }
         }
 
-        // ------------------- SSM + ANSIBLE SETUP -------------------
-        stage('SSM Setup for Ansible') {
-            steps {
-                script {
-                    def pubKey = sh(script: "ssh-add -L", returnStdout: true).trim()
-                    sh """
-                    aws ssm send-command \
-                      --instance-ids \$ANSIBLE_INSTANCE_ID \
-                      --region \$AWS_REGION \
-                      --document-name AWS-RunShellScript \
-                      --parameters '{"commands":["mkdir -p /home/ec2-user/.ssh",
-                                               "grep -qxF \\"${pubKey}\\" /home/ec2-user/.ssh/authorized_keys || echo \\"${pubKey}\\" >> /home/ec2-user/.ssh/authorized_keys",
-                                               "chmod 700 /home/ec2-user/.ssh",
-                                               "chmod 600 /home/ec2-user/.ssh/authorized_keys",
-                                               "chown -R ec2-user:ec2-user /home/ec2-user/.ssh"]}' \
-                      --comment "Add Jenkins agent public key for Ansible server"
-                    """
-                }
-            }
-        }
-
         // ------------------- STAGE DEPLOY -------------------
         stage('Deploy to Stage Environment') {
             steps {
                 script {
-                    def ansibleIP = sh(
-                        script: "aws ssm describe-instance-information --region $AWS_REGION --query \"InstanceInformationList[?InstanceId=='$ANSIBLE_INSTANCE_ID'].IPAddress\" --output text",
-                        returnStdout: true
-                    ).trim()
-        
-                    sshagent(['ansible-key']) { // ansible-key is your Jenkins credential ID
-                        sh """
-                            ssh -o StrictHostKeyChecking=no \\
-                                -o ProxyCommand="aws ssm start-session --target $BASTION_ID --region $AWS_REGION --document-name AWS-StartSSHSession --parameters 'portNumber=%p'" \\
-                                ec2-user@${ansibleIP} \\
+                    sshagent(['ansible-key']) {
+                        sh '''
+                            ssh -o StrictHostKeyChecking=no \
+                                -o ProxyCommand="aws ssm start-session --target $BASTION_ID --region $AWS_REGION --document-name AWS-StartSSHSession --parameters 'portNumber=%p'" \
+                                ec2-user@$ANSIBLE_IP \
                                 "/usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"
-                        """
+                        '''
                     }
                 }
             }
         }
+
         stage('Check Stage Website') {
             steps {
                 sleep 90
@@ -173,8 +156,8 @@ pipeline {
                         sh '''
                             ssh -o StrictHostKeyChecking=no \
                                 -o ProxyCommand="aws ssm start-session --target $BASTION_ID --region $AWS_REGION --document-name AWS-StartSSHSession --parameters 'portNumber=%p'" \
-                                ec2-user@$(aws ssm describe-instance-information --region $AWS_REGION --query "InstanceInformationList[?InstanceId=='$ANSIBLE_INSTANCE_ID'].IPAddress" --output text) \
-                                "/usr/bin/ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml"
+                                ec2-user@$ANSIBLE_IP \
+                                "/usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"
                         '''
                     }
                 }
@@ -194,5 +177,6 @@ pipeline {
                 }
             }
         }
+
     }
 }
