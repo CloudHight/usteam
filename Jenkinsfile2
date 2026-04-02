@@ -115,7 +115,7 @@ pipeline {
         stage('Deploy to stage') {
             steps {
                 sshagent(['ansible-key']) {
-                    sh 'ssh -t -t ec2-user@10.0.2.172 -o strictHostKeyChecking=no "ansible-playbook -i /etc/ansible/stage-hosts /etc/ansible/deployment.yml"'
+                    sh 'ssh -t -t ec2-user@10.0.3.134 -o strictHostKeyChecking=no "ansible-playbook -i /etc/ansible/stage-hosts /etc/ansible/deployment.yml"'
                 }
             }
         }
@@ -129,21 +129,13 @@ pipeline {
         }
 
         // ------------------- PROD DEPLOY -------------------
-        stage('Deploy to Prod Environment') {
+        stage('Deploy to prod') {
             steps {
-                script {
-                    sshagent(['ansible-key']) {
-                        sh '''
-                            ssh -o StrictHostKeyChecking=no \
-                                -o ProxyCommand="aws ssm start-session --target $BASTION_ID --region $AWS_REGION --document-name AWS-StartSSHSession --parameters 'portNumber=%p'" \
-                                ec2-user@$ANSIBLE_IP \
-                                "/usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"
-                        '''
-                    }
+                sshagent(['ansible-key']) {
+                    sh 'ssh -t -t ec2-user@10.0.3.134 -o strictHostKeyChecking=no "ansible-playbook -i /etc/ansible/stage-hosts /etc/ansible/deployment.yml"'
                 }
             }
         }
-
         stage('Check Prod Website') {
             steps {
                 sleep 90
