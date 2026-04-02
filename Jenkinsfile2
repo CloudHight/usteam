@@ -94,7 +94,7 @@ pipeline {
 
         stage('Push to Nexus Docker Repo') {
             steps {
-                sh 'docker push 35.180.255.171/petclinicapps:latest'
+                sh 'docker push 35.180.255.171:8085/petclinicapps:latest'
             }
         }
 
