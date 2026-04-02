@@ -30,17 +30,18 @@ pipeline {
             }
         }
 
+        // ------------------- DEPENDENCY CHECK -------------------
         stage('Dependency check') {
             steps {
                 withCredentials([string(credentialsId: 'nvd-key', variable: 'NVD_API_KEY')]) {
-                    sh '''
-                        dependency-check \
-                            --scan ./ \
-                            --disableYarnAudit \
-                            --disableNodeAudit \
-                            --nvdApiKey $NVD_API_KEY \
-                            --data /var/lib/jenkins/dependency-check
-                    '''
+                    dependencyCheck(
+                        odcInstallation: 'DP-Check', // Must match your Jenkins tool name
+                        additionalArguments: '''--scan ./ \
+                                                --disableYarnAudit \
+                                                --disableNodeAudit \
+                                                --nvdApiKey $NVD_API_KEY \
+                                                --data /var/lib/jenkins/dependency-check'''
+                    )
                 }
                 dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
@@ -109,6 +110,7 @@ pipeline {
             }
         }
 
+        // ------------------- STAGE DEPLOY -------------------
         stage('Deploy to Stage Environment') {
             steps {
                 script {
@@ -146,6 +148,7 @@ pipeline {
             }
         }
 
+        // ------------------- PROD DEPLOY -------------------
         stage('Deploy to Prod Environment') {
             steps {
                 script {
