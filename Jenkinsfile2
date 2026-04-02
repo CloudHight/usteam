@@ -114,21 +114,19 @@ pipeline {
         stage('Deploy to Stage Environment') {
             steps {
                 script {
-                    // Get the Ansible server IP from SSM
+                    // Get Ansible server IP from SSM
                     def ansibleIP = sh(
                         script: "aws ssm describe-instance-information --region $AWS_REGION --query \"InstanceInformationList[?InstanceId=='$ANSIBLE_INSTANCE_ID'].IPAddress\" --output text",
                         returnStdout: true
                     ).trim()
         
-                    // SSH and run ansible-playbook
-                    sshagent(['ansible-key']) {
-                        sh """
-                            ssh -o StrictHostKeyChecking=no \\
-                                -i /home/ubuntu/.ssh/id_rsa \\
-                                ec2-user@${ansibleIP} \\
-                                "/usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"
-                        """
-                    }
+                    // SSH into Ansible server and run the playbook
+                    sh """
+                        sudo su - ubuntu -c '
+                            ssh -i /home/ubuntu/.ssh/id_rsa ec2-user@${ansibleIP} \\
+                            "/usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"
+                        '
+                    """
                 }
             }
         }
