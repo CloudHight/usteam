@@ -78,7 +78,7 @@ pipeline {
                 )]) {
                     sh '''
                         echo "$DOCKER_PASS" | docker login 35.180.255.171:8085 \
-                        --username "$DOCKER_USER" --password-stdin --insecure
+                        --username "$DOCKER_USER" --password-stdin
                     '''
                 }
             }
