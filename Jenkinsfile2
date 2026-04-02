@@ -118,7 +118,7 @@ pipeline {
                         sh '''
                             ssh -o StrictHostKeyChecking=no \
                                 -o ProxyCommand="aws ssm start-session --target $BASTION_ID --region $AWS_REGION --document-name AWS-StartSSHSession --parameters 'portNumber=%p'" \
-                                ubuntu@$ANSIBLE_IP \
+                                ec2-user@$ANSIBLE_IP \
                                 "/usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"
                         '''
                     }
@@ -156,7 +156,7 @@ pipeline {
                         sh '''
                             ssh -o StrictHostKeyChecking=no \
                                 -o ProxyCommand="aws ssm start-session --target $BASTION_ID --region $AWS_REGION --document-name AWS-StartSSHSession --parameters 'portNumber=%p'" \
-                                ubuntu@$ANSIBLE_IP \
+                                ec2-user@$ANSIBLE_IP \
                                 "/usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"
                         '''
                     }
