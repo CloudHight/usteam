@@ -127,13 +127,12 @@ pipeline {
         stage('Deploy to Stage Environment') {
             steps {
                 script {
-                    // fetch Ansible server IP first
                     def ansibleIP = sh(
                         script: "aws ssm describe-instance-information --region $AWS_REGION --query \"InstanceInformationList[?InstanceId=='$ANSIBLE_INSTANCE_ID'].IPAddress\" --output text",
                         returnStdout: true
                     ).trim()
         
-                    sshagent(['ansible-key']) {
+                    sshagent(['ansible-key']) { // ansible-key is your Jenkins credential ID
                         sh """
                             ssh -o StrictHostKeyChecking=no \\
                                 -o ProxyCommand="aws ssm start-session --target $BASTION_ID --region $AWS_REGION --document-name AWS-StartSSHSession --parameters 'portNumber=%p'" \\
@@ -144,7 +143,6 @@ pipeline {
                 }
             }
         }
-
         stage('Check Stage Website') {
             steps {
                 sleep 90
