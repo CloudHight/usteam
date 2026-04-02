@@ -2,10 +2,8 @@ pipeline {
     agent any
 
     environment {
-        BASTION_IP = credentials('bastion-ip')
-        ANSIBLE_IP = credentials('ansible-ip')
-        ANSIBLE_INSTANCE_ID = credentials('ansible-id') // Add this
         BASTION_ID = credentials('bastion-id')
+        ANSIBLE_INSTANCE_ID = credentials('ansible-id')
         AWS_REGION = 'eu-west-3'
     }
 
@@ -31,13 +29,13 @@ pipeline {
             }
         }
 
-        stage('Dependency check') {
+        stage('Dependency Check') {
             steps {
                 withCredentials([string(credentialsId: 'nvd-key', variable: 'NVD_API_KEY')]) {
-                    dependencyCheck additionalArguments: "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey ${NVD_API_KEY}",
-                        odcInstallation: 'DP-Check'
+                    dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey ${NVD_API_KEY}',
+                                    odcInstallation: 'DP-Check'
+                    dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
                 }
-                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
         }
 
@@ -80,7 +78,7 @@ pipeline {
                 )]) {
                     sh '''
                         echo "$DOCKER_PASS" | docker login 35.180.255.171:8085 \
-                        --username "$DOCKER_USER" --password-stdin
+                        --username "$DOCKER_USER" --password-stdin --insecure
                     '''
                 }
             }
@@ -104,20 +102,23 @@ pipeline {
             }
         }
 
-        // ------------------- NEW: Setup SSH Access -------------------
-        stage('Setup SSH Access to Ansible') {
+        // ------------------- SSM + ANSIBLE SETUP -------------------
+        stage('SSM Setup for Ansible') {
             steps {
                 script {
-                    sshagent(['ansible-key']) {
-                        sh """
-                        PUB_KEY=\$(ssh-add -L)
-                        aws ssm send-command \
-                            --instance-ids $ANSIBLE_INSTANCE_ID \
-                            --region $AWS_REGION \
-                            --document-name "AWS-RunShellScript" \
-                            --parameters commands="mkdir -p /home/ec2-user/.ssh && grep -qxF '\$PUB_KEY' /home/ec2-user/.ssh/authorized_keys || echo '\$PUB_KEY' >> /home/ec2-user/.ssh/authorized_keys && chmod 700 /home/ec2-user/.ssh && chmod 600 /home/ec2-user/.ssh/authorized_keys && chown -R ec2-user:ec2-user /home/ec2-user/.ssh"
-                        """
-                    }
+                    def pubKey = sh(script: "ssh-add -L", returnStdout: true).trim()
+                    sh """
+                    aws ssm send-command \
+                      --instance-ids \$ANSIBLE_INSTANCE_ID \
+                      --region \$AWS_REGION \
+                      --document-name AWS-RunShellScript \
+                      --parameters '{"commands":["mkdir -p /home/ec2-user/.ssh",
+                                               "grep -qxF \\"${pubKey}\\" /home/ec2-user/.ssh/authorized_keys || echo \\"${pubKey}\\" >> /home/ec2-user/.ssh/authorized_keys",
+                                               "chmod 700 /home/ec2-user/.ssh",
+                                               "chmod 600 /home/ec2-user/.ssh/authorized_keys",
+                                               "chown -R ec2-user:ec2-user /home/ec2-user/.ssh"]}' \
+                      --comment "Add Jenkins agent public key for Ansible server"
+                    """
                 }
             }
         }
@@ -130,8 +131,8 @@ pipeline {
                         sh '''
                             ssh -o StrictHostKeyChecking=no \
                                 -o ProxyCommand="aws ssm start-session --target $BASTION_ID --region $AWS_REGION --document-name AWS-StartSSHSession --parameters 'portNumber=%p'" \
-                                ec2-user@$ANSIBLE_IP \
-                                "bash -lc 'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
+                                ec2-user@$(aws ssm describe-instance-information --region $AWS_REGION --query "InstanceInformationList[?InstanceId=='$ANSIBLE_INSTANCE_ID'].IPAddress" --output text) \
+                                "/usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"
                         '''
                     }
                 }
@@ -168,8 +169,8 @@ pipeline {
                         sh '''
                             ssh -o StrictHostKeyChecking=no \
                                 -o ProxyCommand="aws ssm start-session --target $BASTION_ID --region $AWS_REGION --document-name AWS-StartSSHSession --parameters 'portNumber=%p'" \
-                                ec2-user@$ANSIBLE_IP \
-                                "bash -lc 'ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml'"
+                                ec2-user@$(aws ssm describe-instance-information --region $AWS_REGION --query "InstanceInformationList[?InstanceId=='$ANSIBLE_INSTANCE_ID'].IPAddress" --output text) \
+                                "/usr/bin/ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml"
                         '''
                     }
                 }
@@ -189,6 +190,5 @@ pipeline {
                 }
             }
         }
-
     }
 }
