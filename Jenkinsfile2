@@ -120,6 +120,8 @@ pipeline {
                            script: "aws ssm describe-instance-information --region ${AWS_REGION} --query \"InstanceInformationList[?InstanceId=='${ANSIBLE_INSTANCE_ID}'].IPAddress\" --output text",
                            returnStdout: true
                        ).trim()
+                       
+                       echo "Ansible IP: ${ansibleIP}"  // Log the IP
         
                        // Step 2: SSH into the Ansible server and run the playbook
                        def result = sh(script: """
@@ -127,6 +129,8 @@ pipeline {
                                /usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml
                            "
                        """, returnStatus: true)
+        
+                       echo "SSH command exit code: ${result}"  // Log the exit code
         
                        // Check if the command was successful
                        if (result != 0) {
