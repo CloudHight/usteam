@@ -118,28 +118,21 @@ pipeline {
                    try {
                        // Step 1: Get Ansible server IP
                        def ansibleIP = sh(
-                           script: "aws ssm describe-instance-information --region ${AWS_REGION} --query \"InstanceInformationList[?InstanceId=='${ANSIBLE_INSTANCE_ID}'].IPAddress\" --output text",
+                           script: "aws ssm describe-instance-information --region ${AWS_REGION} --query \"InstanceInformationList[?InstanceId=='${ANSIBLE_INSTANCE_ID}'].PrivateIpAddress\" --output text",
                            returnStdout: true
                        ).trim()
-                       
-                       echo "Ansible IP: ${ansibleIP}"  // Log the IP
         
-                       // Step 2: SSH into the Ansible server and run the playbook
-                       def result = sh(script: """
-                           ssh -o StrictHostKeyChecking=no -i /home/ubuntu/.ssh/id_rsa ec2-user@${ansibleIP} "
-                               /usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml
-                           "
-                       """, returnStatus: true)
-        
-                       echo "SSH command exit code: ${result}"  // Log the exit code
-        
-                       // Check if the command was successful
-                       if (result != 0) {
-                           error "Deployment failed with exit code: ${result}"
+                       // Step 2: Use Ansible credentials to deploy
+                       withCredentials([usernamePassword(credentialsId: 'ansible-cred', usernameVariable: 'ANSIBLE_USER', passwordVariable: 'ANSIBLE_PASS')]) {
+                           sh """
+                               ansible-playbook -i ${ansibleIP}, /etc/ansible/deployment.yml \
+                               --user \$ANSIBLE_USER \
+                               --private-key /path/to/private/key \
+                               --extra-vars "ansible_password=\$ANSIBLE_PASS"
+                           """
                        }
-        
                    } catch (Exception e) {
-                       error "Error during deployment: ${e.message}"
+                       error("Deployment failed: ${e.message}")
                    }
                }
            }
