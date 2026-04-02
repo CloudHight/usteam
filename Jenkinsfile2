@@ -4,6 +4,7 @@ pipeline {
     environment {
         BASTION_IP = credentials('bastion-ip')
         ANSIBLE_IP = credentials('ansible-ip')
+        ANSIBLE_INSTANCE_ID = credentials('ansible-instance-id') // Add this
         BASTION_ID = credentials('bastion-id')
         AWS_REGION = 'eu-west-3'
     }
@@ -30,18 +31,11 @@ pipeline {
             }
         }
 
-        // ------------------- DEPENDENCY CHECK -------------------
         stage('Dependency check') {
             steps {
                 withCredentials([string(credentialsId: 'nvd-key', variable: 'NVD_API_KEY')]) {
-                    dependencyCheck(
-                        odcInstallation: 'DP-Check', // Must match your Jenkins tool name
-                        additionalArguments: '''--scan ./ \
-                                                --disableYarnAudit \
-                                                --disableNodeAudit \
-                                                --nvdApiKey $NVD_API_KEY \
-                                                --data /var/lib/jenkins/dependency-check'''
-                    )
+                    dependencyCheck additionalArguments: "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey ${NVD_API_KEY}",
+                        odcInstallation: 'DP-Check'
                 }
                 dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
@@ -100,13 +94,31 @@ pipeline {
 
         stage('Push to Nexus Docker Repo') {
             steps {
-                sh 'docker push 35.180.255.171:8085/petclinicapps:latest'
+                sh 'docker push 35.180.255.171/petclinicapps:latest'
             }
         }
 
         stage('Prune Docker Images') {
             steps {
                 sh 'docker image prune -f'
+            }
+        }
+
+        // ------------------- NEW: Setup SSH Access -------------------
+        stage('Setup SSH Access to Ansible') {
+            steps {
+                script {
+                    sshagent(['ansible-key']) {
+                        sh """
+                        PUB_KEY=\$(ssh-add -L)
+                        aws ssm send-command \
+                            --instance-ids $ANSIBLE_INSTANCE_ID \
+                            --region $AWS_REGION \
+                            --document-name "AWS-RunShellScript" \
+                            --parameters commands="mkdir -p /home/ec2-user/.ssh && grep -qxF '\$PUB_KEY' /home/ec2-user/.ssh/authorized_keys || echo '\$PUB_KEY' >> /home/ec2-user/.ssh/authorized_keys && chmod 700 /home/ec2-user/.ssh && chmod 600 /home/ec2-user/.ssh/authorized_keys && chown -R ec2-user:ec2-user /home/ec2-user/.ssh"
+                        """
+                    }
+                }
             }
         }
 
@@ -119,7 +131,7 @@ pipeline {
                             ssh -o StrictHostKeyChecking=no \
                                 -o ProxyCommand="aws ssm start-session --target $BASTION_ID --region $AWS_REGION --document-name AWS-StartSSHSession --parameters 'portNumber=%p'" \
                                 ec2-user@$ANSIBLE_IP \
-                                "/usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"
+                                "bash -lc 'ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml'"
                         '''
                     }
                 }
@@ -157,7 +169,7 @@ pipeline {
                             ssh -o StrictHostKeyChecking=no \
                                 -o ProxyCommand="aws ssm start-session --target $BASTION_ID --region $AWS_REGION --document-name AWS-StartSSHSession --parameters 'portNumber=%p'" \
                                 ec2-user@$ANSIBLE_IP \
-                                "/usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"
+                                "bash -lc 'ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml'"
                         '''
                     }
                 }
