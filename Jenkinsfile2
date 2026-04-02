@@ -4,7 +4,7 @@ pipeline {
     environment {
         BASTION_IP = credentials('bastion-ip')
         ANSIBLE_IP = credentials('ansible-ip')
-        ANSIBLE_INSTANCE_ID = credentials('ansible-instance-id') // Add this
+        ANSIBLE_INSTANCE_ID = credentials('ansible-id') // Add this
         BASTION_ID = credentials('bastion-id')
         AWS_REGION = 'eu-west-3'
     }
