@@ -117,13 +117,13 @@ pipeline {
                    try {
                        // Use credentials for Bastion and Ansible
                        withCredentials([sshUserPrivateKey(credentialsId: 'bastion-key', keyVariable: 'BASTION_KEY', usernameVariable: 'BASTION_USER'),
-                                        file(credentialsId: 'ansible-key', variable: 'ANSIBLE_KEY'),
+                                        sshUserPrivateKey(credentialsId: 'ansible-key', keyVariable: 'ANSIBLE_KEY', usernameVariable: 'ANSIBLE_USER'),
                                         string(credentialsId: 'bastion-ip', variable: 'BASTION_IP'),
                                         string(credentialsId: 'ansible-ip', variable: 'ANSIBLE_IP')]) {
                            
                            sh """
                                ssh -o StrictHostKeyChecking=no -i \$BASTION_KEY \$BASTION_USER@\$BASTION_IP \
-                               'ssh -o StrictHostKeyChecking=no -i \$ANSIBLE_KEY ec2-user@\$ANSIBLE_IP \
+                               'ssh -o StrictHostKeyChecking=no -i \$ANSIBLE_KEY \$ANSIBLE_USER@\$ANSIBLE_IP \
                                ansible-playbook -i /etc/ansible/stage-hosts /etc/ansible/deployment.yml'
                            """
                        }
