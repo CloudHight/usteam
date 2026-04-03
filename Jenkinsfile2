@@ -134,7 +134,7 @@ pipeline {
            }
         }
         // ------------------- PROD DEPLOY -------------------
-        stage('Deploy to prod Environment') {
+        stage('Deploy to Prod Environment') {
            steps {
                script {
                    try {
