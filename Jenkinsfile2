@@ -117,18 +117,20 @@ pipeline {
                 script {
                     try {
                         withCredentials([
-                            sshUserPrivateKey(credentialsId: 'ansible-key', keyFileVariable: 'ANSIBLE_KEY', usernameVariable: 'ANSIBLE_USER'),
-                            string(credentialsId: 'ansible-ip', variable: 'ANSIBLE_IP')
+                            string(credentialsId: 'ansible-instance-id', variable: 'ANSIBLE_INSTANCE_ID')
                         ]) {
         
-                            echo "Connecting to Ansible IP: ${ANSIBLE_IP}"
+                            sh '''
+                            aws ssm send-command \
+                              --instance-ids $ANSIBLE_INSTANCE_ID \
+                              --region eu-west-3 \
+                              --document-name "AWS-RunShellScript" \
+                              --comment "Run Ansible Playbook" \
+                              --parameters commands="/usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml" \
+                              --output text
+                            '''
         
-                            sh """
-                                ssh -o StrictHostKeyChecking=no -i ${ANSIBLE_KEY} ${ANSIBLE_USER}@${ANSIBLE_IP} \\
-                                "/usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"
-                            """
                         }
-        
                     } catch (Exception e) {
                         error("Deployment failed: ${e.message}")
                     }
@@ -137,30 +139,29 @@ pipeline {
         }
                 // ------------------- PROD DEPLOY -------------------
         stage('Deploy to Prod Environment') {
-          steps {
-              script {
-                  try {
-                      // Use credentials for Bastion and Ansible
-                      withCredentials([sshUserPrivateKey(credentialsId: 'bastion-key', keyVariable: 'BASTION_KEY', usernameVariable: 'BASTION_USER'),
-                                       sshUserPrivateKey(credentialsId: 'ansible-key', keyVariable: 'ANSIBLE_KEY', usernameVariable: 'ANSIBLE_USER'),
-                                       string(credentialsId: 'bastion-ip', variable: 'BASTION_IP'),
-                                       string(credentialsId: 'ansible-ip', variable: 'ANSIBLE_IP')]) {
-                          
-                          // Debugging output
-                          echo "Connecting to Bastion IP: \$BASTION_IP"
-                          echo "Connecting to Ansible IP: \$ANSIBLE_IP"
+            steps {
+                script {
+                    try {
+                        withCredentials([
+                            string(credentialsId: 'ansible-instance-id', variable: 'ANSIBLE_INSTANCE_ID')
+                        ]) {
         
-                          sh """
-                              ssh -o StrictHostKeyChecking=no -i \$BASTION_KEY \$BASTION_USER@\$BASTION_IP \
-                              'ssh -o StrictHostKeyChecking=no -i \$ANSIBLE_KEY \$ANSIBLE_USER@\$ANSIBLE_IP \
-                              ansible-playbook -i /etc/ansible/stage-hosts /etc/ansible/deployment.yml'
-                          """
-                      }
-                  } catch (Exception e) {
-                      error("Deployment failed: ${e.message}")
-                  }
-              }
-          }
+                            sh '''
+                            aws ssm send-command \
+                              --instance-ids $ANSIBLE_INSTANCE_ID \
+                              --region eu-west-3 \
+                              --document-name "AWS-RunShellScript" \
+                              --comment "Run Ansible Playbook" \
+                              --parameters commands="/usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml" \
+                              --output text
+                            '''
+        
+                        }
+                    } catch (Exception e) {
+                        error("Deployment failed: ${e.message}")
+                    }
+                }
+            }
         }
         stage('Check Prod Website') {
             steps {
