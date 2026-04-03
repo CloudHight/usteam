@@ -116,13 +116,13 @@ pipeline {
                script {
                    try {
                        // Use credentials for Bastion and Ansible
-                       withCredentials([file(credentialsId: 'bastion-key', variable: 'BASTION_KEY'),
+                       withCredentials([sshUserPrivateKey(credentialsId: 'bastion-key', keyVariable: 'BASTION_KEY', usernameVariable: 'BASTION_USER'),
                                         file(credentialsId: 'ansible-key', variable: 'ANSIBLE_KEY'),
                                         string(credentialsId: 'bastion-ip', variable: 'BASTION_IP'),
                                         string(credentialsId: 'ansible-ip', variable: 'ANSIBLE_IP')]) {
                            
                            sh """
-                               ssh -o StrictHostKeyChecking=no -i \$BASTION_KEY ubuntu@\$BASTION_IP \
+                               ssh -o StrictHostKeyChecking=no -i \$BASTION_KEY \$BASTION_USER@\$BASTION_IP \
                                'ssh -o StrictHostKeyChecking=no -i \$ANSIBLE_KEY ec2-user@\$ANSIBLE_IP \
                                ansible-playbook -i /etc/ansible/stage-hosts /etc/ansible/deployment.yml'
                            """
@@ -133,20 +133,19 @@ pipeline {
                }
            }
         }
-
         // ------------------- PROD DEPLOY -------------------
         stage('Deploy to prod Environment') {
            steps {
                script {
                    try {
                        // Use credentials for Bastion and Ansible
-                       withCredentials([file(credentialsId: 'bastion-key', variable: 'BASTION_KEY'),
+                       withCredentials([sshUserPrivateKey(credentialsId: 'bastion-key', keyVariable: 'BASTION_KEY', usernameVariable: 'BASTION_USER'),
                                         file(credentialsId: 'ansible-key', variable: 'ANSIBLE_KEY'),
                                         string(credentialsId: 'bastion-ip', variable: 'BASTION_IP'),
                                         string(credentialsId: 'ansible-ip', variable: 'ANSIBLE_IP')]) {
                            
                            sh """
-                               ssh -o StrictHostKeyChecking=no -i \$BASTION_KEY ubuntu@\$BASTION_IP \
+                               ssh -o StrictHostKeyChecking=no -i \$BASTION_KEY \$BASTION_USER@\$BASTION_IP \
                                'ssh -o StrictHostKeyChecking=no -i \$ANSIBLE_KEY ec2-user@\$ANSIBLE_IP \
                                ansible-playbook -i /etc/ansible/stage-hosts /etc/ansible/deployment.yml'
                            """
