@@ -110,24 +110,25 @@ pipeline {
             }
         }
 
+        
         // ------------------- STAGE DEPLOY -------------------
-        // ------------------- STAGE DEPLOY -------------------
-        stage('Deploy to Stage Environment') {
+       stage('Deploy to Stage Environment') {
            steps {
                script {
                    try {
                        // Use credentials for Bastion and Ansible
-                       withCredentials([string(credentialsId: 'bastion-id', variable: 'BASTION_ID'),
+                       withCredentials([sshUserPrivateKey(credentialsId: 'bastion-key', variable: 'BASTION_KEY', usernameVariable: 'BASTION_USER'),
+                                        sshUserPrivateKey(credentialsId: 'ansible-key', variable: 'ANSIBLE_KEY', usernameVariable: 'ANSIBLE_USER'),
+                                        string(credentialsId: 'bastion-id', variable: 'BASTION_ID'),
                                         string(credentialsId: 'bastion-ip', variable: 'BASTION_IP'),
-                                        sshUserPrivateKey(credentialsId: 'bastion-key', keyVariable: 'BASTION_KEY', usernameVariable: 'BASTION_USER'),
-                                        sshUserPrivateKey(credentialsId: 'ansible-key', keyVariable: 'ANSIBLE_KEY', usernameVariable: 'ANSIBLE_USER')]) {
+                                        string(credentialsId: 'ansible-ip', variable: 'ANSIBLE_IP')]) {
                            
                            // Debugging output
                            echo "Connecting to Bastion IP: \$BASTION_IP"
                            echo "Connecting to Ansible IP: \$ANSIBLE_IP"
         
                            sh """
-                               # SSM into the Bastion
+                               # SSM into the Bastion and then SSH into Ansible
                                aws ssm start-session --target \$BASTION_ID --document-name AWS-StartInteractiveCommand --parameters 'command=["ssh -o StrictHostKeyChecking=no -i \$ANSIBLE_KEY \$ANSIBLE_USER@\$ANSIBLE_IP ansible-playbook -i /etc/ansible/stage-hosts /etc/ansible/deployment.yml"]'
                            """
                        }
