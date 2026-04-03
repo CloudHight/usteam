@@ -111,23 +111,24 @@ pipeline {
         }
 
         
-        // ------------------- STAGE DEPLOY -------------------
+       // ------------------- STAGE DEPLOY -------------------
        stage('Deploy to Stage Environment') {
             steps {
                 script {
                     try {
                         withCredentials([
-                            string(credentialsId: 'ansible-instance-id', variable: 'ANSIBLE_INSTANCE_ID')
+                            sshUserPrivateKey(credentialsId: 'bastion-key', keyFileVariable: 'BASTION_KEY'),
+                            sshUserPrivateKey(credentialsId: 'ansible-key', keyFileVariable: 'ANSIBLE_KEY'),
+                            string(credentialsId: 'bastion-ip', variable: 'BASTION_IP'),
+                            string(credentialsId: 'ansible-ip', variable: 'ANSIBLE_IP')
                         ]) {
         
                             sh '''
-                            aws ssm send-command \
-                              --instance-ids $ANSIBLE_INSTANCE_ID \
-                              --region eu-west-3 \
-                              --document-name "AWS-RunShellScript" \
-                              --comment "Run Ansible Playbook" \
-                              --parameters commands="/usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml" \
-                              --output text
+                            ssh -o StrictHostKeyChecking=no \
+                                -o ProxyCommand="ssh -o StrictHostKeyChecking=no -i $BASTION_KEY ubuntu@$BASTION_IP -W %h:%p" \
+                                -i $ANSIBLE_KEY \
+                                ec2-user@$ANSIBLE_IP \
+                                "/usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"
                             '''
         
                         }
@@ -137,23 +138,24 @@ pipeline {
                 }
             }
         }
-                // ------------------- PROD DEPLOY -------------------
+        // ------------------- PROD DEPLOY -------------------
         stage('Deploy to Prod Environment') {
             steps {
                 script {
                     try {
                         withCredentials([
-                            string(credentialsId: 'ansible-instance-id', variable: 'ANSIBLE_INSTANCE_ID')
+                            sshUserPrivateKey(credentialsId: 'bastion-key', keyFileVariable: 'BASTION_KEY'),
+                            sshUserPrivateKey(credentialsId: 'ansible-key', keyFileVariable: 'ANSIBLE_KEY'),
+                            string(credentialsId: 'bastion-ip', variable: 'BASTION_IP'),
+                            string(credentialsId: 'ansible-ip', variable: 'ANSIBLE_IP')
                         ]) {
         
                             sh '''
-                            aws ssm send-command \
-                              --instance-ids $ANSIBLE_INSTANCE_ID \
-                              --region eu-west-3 \
-                              --document-name "AWS-RunShellScript" \
-                              --comment "Run Ansible Playbook" \
-                              --parameters commands="/usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml" \
-                              --output text
+                            ssh -o StrictHostKeyChecking=no \
+                                -o ProxyCommand="ssh -o StrictHostKeyChecking=no -i $BASTION_KEY ubuntu@$BASTION_IP -W %h:%p" \
+                                -i $ANSIBLE_KEY \
+                                ec2-user@$ANSIBLE_IP \
+                                "/usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"
                             '''
         
                         }
