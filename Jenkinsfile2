@@ -5,7 +5,6 @@ pipeline {
         BASTION_IP = credentials('bastion-ip')
         ANSIBLE_IP = credentials('ansible-ip')
         BASTION_ID = credentials('bastion-id')
-        ANSIBLE_INSTANCE_ID = credentials('ansible-id') // Add this line
         AWS_REGION = 'eu-west-3'
     }
 
