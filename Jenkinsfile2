@@ -5,6 +5,9 @@ pipeline {
         BASTION_IP = credentials('bastion-ip')
         ANSIBLE_IP = credentials('ansible-ip')
         BASTION_ID = credentials('bastion-id')
+        DOCKER_USER = credentials('nexus-username')
+        DOCKER_PASS = credentials('nexus-password')
+        
         AWS_REGION = 'eu-west-3'
     }
 
