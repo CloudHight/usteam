@@ -63,7 +63,7 @@ pipeline {
                 ]],
                 credentialsId: 'nexus-cred',
                 groupId: 'Petclinic',
-                nexusUrl: 'nexus.everythingops.io',
+                nexusUrl: 'nexus.gaurav-devops.site',
                 nexusVersion: 'nexus3',
                 protocol: 'https',
                 repository: 'nexus-repo',
@@ -73,7 +73,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t 15.188.143.11:8085/petclinicapps:latest .'
+                sh 'docker build -t 51.44.10.234:8085/petclinicapps:latest .'
             }
         }
 
@@ -85,7 +85,7 @@ pipeline {
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
                     sh '''
-                        echo "$DOCKER_PASS" | docker login 15.188.143.11:8085 \
+                        echo "$DOCKER_PASS" | docker login 51.44.10.234:8085 \
                         --username "$DOCKER_USER" --password-stdin
                     '''
                 }
@@ -94,13 +94,13 @@ pipeline {
 
         stage('Trivy Image Scan') {
             steps {
-                sh 'trivy image --insecure -f table 15.188.143.11:8085/petclinicapps:latest'
+                sh 'trivy image --insecure -f table 51.44.10.234:8085/petclinicapps:latest'
             }
         }
 
         stage('Push to Nexus Docker Repo') {
             steps {
-                sh 'docker push 15.188.143.11:8085/petclinicapps:latest'
+                sh 'docker push 51.44.10.234:8085/petclinicapps:latest'
             }
         }
 
@@ -173,7 +173,7 @@ pipeline {
             steps {
                 sleep 90
                 script {
-                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.everythingops.io", returnStdout: true).trim()
+                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.gaurav-devops.site", returnStdout: true).trim()
                     if (response == "200") {
                         slackSend(color: 'good', message: "Prod app is UP (${response})", tokenCredentialId: 'slack-cred')
                     } else {
