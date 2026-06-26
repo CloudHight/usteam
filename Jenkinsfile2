@@ -1,122 +1,190 @@
 pipeline {
     agent any
+
     environment {
-        NEXUS_USER = credentials('nexus-username')
-        NEXUS_PASSWORD = credentials('nexus-password')
-        NEXUS_REPO = credentials('nexus-repo')
-        NVD_API_KEY= credentials('nvd-key')
+        BASTION_IP = credentials('bastion-ip')
+        ANSIBLE_IP = credentials('ansible-ip')
+        BASTION_ID = credentials('bastion-id')
+        DOCKER_USER = credentials('nexus-username')
+        DOCKER_PASS = credentials('nexus-password')
+        
+        AWS_REGION = 'eu-west-3'
     }
+
+    triggers {
+        pollSCM('* * * * *')
+    }
+
     stages {
-        stage('Code analisys stage') {
+
+        stage('Code Analysis') {
             steps {
                 withSonarQubeEnv('sonarqube') {
                     sh 'mvn sonar:sonar'
                 }
             }
         }
-        stage('Quality gate') {
+
+        stage('Quality Gate') {
             steps {
                 timeout(time: 2, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true 
+                    waitForQualityGate abortPipeline: true
                 }
             }
         }
-        stage('Build artefacts') {
-            steps {
-                sh 'mvn clean install -DskipTests -Dcheckstyle.skip'
-            }
-        }
-                
 
-        stage('Build Docker image') {
+        // ------------------- DEPENDENCY CHECK -------------------
+        stage('Dependency check') {
             steps {
-                sh 'docker build -t $NEXUS_REPO/petclinicapps .'
+                withCredentials([string(credentialsId: 'nvd-key', variable: 'NVD_API_KEY')]) {
+                    dependencyCheck(
+                        odcInstallation: 'DP-Check', // Must match your Jenkins tool name
+                        additionalArguments: '''--scan ./ \
+                                                --disableYarnAudit \
+                                                --disableNodeAudit \
+                                                --nvdApiKey $NVD_API_KEY \
+                                                --data /var/lib/jenkins/dependency-check'''
+                    )
+                }
+                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
         }
-    
-        stage('Push artifacts to nexus-repo') {
+
+        stage('Build Artifact') {
             steps {
-                nexusArtifactUploader artifacts: [[artifactId: 'spring-petclinic',
-                classifier: '',
-                file: 'target/spring-petclinic-2.4.2.war',
-                type: 'war']],
+                sh 'mvn clean package -DskipTests -Dcheckstyle.skip'
+            }
+        }
+
+        stage('Push Artifact to Nexus Repo') {
+            steps {
+                nexusArtifactUploader artifacts: [[
+                    artifactId: 'spring-petclinic',
+                    classifier: '',
+                    file: 'target/spring-petclinic-2.4.2.war',
+                    type: 'war'
+                ]],
                 credentialsId: 'nexus-cred',
                 groupId: 'Petclinic',
-                nexusUrl: 'nexus.selfdevops.space',
+                nexusUrl: 'nexus.everythingops.io',
                 nexusVersion: 'nexus3',
                 protocol: 'https',
                 repository: 'nexus-repo',
                 version: '1.0'
             }
         }
-        stage('Trivy file scan') {
+
+        stage('Build Docker Image') {
             steps {
-                sh "trivy fs . > trivyfs.txt"
+                sh 'docker build -t 51.44.84.95:8085/petclinicapps:latest .'
             }
         }
-        stage('Login to Nexus repo') {
+
+        stage('Login to Nexus Docker Repo') {
             steps {
-                sh 'docker login --username $NEXUS_USER --password $NEXUS_PASSWORD $NEXUS_REPO'
-            }
-        }
-        stage('Push image to Nexus repo') {
-            steps {
-                sh 'docker push $NEXUS_REPO/myapp'
-            }
-        }
-        stage('Trivi image scan') {
-            steps {
-                sh "trivy image $NEXUS_REPO/myapp > trivy.txt"
-            }
-        }
-        stage('Deploy to stage') {
-            steps {
-                sshagent(['ansible-key']) {
-                    sh 'ssh -t -t ec2-user@10.0.2.172 -o strictHostKeyChecking=no "ansible-playbook -i /etc/ansible/stage-hosts /etc/ansible/stage-playbook.yml"'
+                withCredentials([usernamePassword(
+                    credentialsId: 'nexus-cred',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login 51.44.84.95:8085 \
+                        --username "$DOCKER_USER" --password-stdin
+                    '''
                 }
             }
         }
-        stage('check stage website availability') {
+
+        stage('Trivy Image Scan') {
             steps {
-                 sh "sleep 90"
-                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://stage.selfdevops.space"
+                sh 'trivy image --insecure -f table 51.44.84.95:8085/petclinicapps:latest'
+            }
+        }
+
+        stage('Push to Nexus Docker Repo') {
+            steps {
+                sh 'docker push 51.44.84.95:8085/petclinicapps:latest'
+            }
+        }
+
+        stage('Prune Docker Images') {
+            steps {
+                sh 'docker image prune -f'
+            }
+        }
+
+        
+       // ------------------- STAGE DEPLOY -------------------
+       stage('Deploy to Stage Environment') {
+            steps {
                 script {
-                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.selfdevops.space", returnStdout: true).trim()
-                    if (response == "200") {
-                        slackSend(color: 'good', message: "The stage petclinic website is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack')
-                    } else {
-                        slackSend(color: 'danger', message: "The stage petclinic wordpress website appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack')
+                    try {
+                        withCredentials([
+                            string(credentialsId: 'bastion-id', variable: 'BASTION_ID'),
+                            string(credentialsId: 'ansible-ip', variable: 'ANSIBLE_IP')
+                        ]) {
+        
+                            sh '''
+                            aws ssm send-command \
+                              --instance-ids $BASTION_ID \
+                              --region eu-west-3 \
+                              --document-name "AWS-RunShellScript" \
+                              --comment "Deploy via Bastion to Ansible" \
+                              --parameters 'commands=[
+                                "ssh -o StrictHostKeyChecking=no ec2-user@$ANSIBLE_IP sudo /usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"
+                              ]' \
+                              --output text
+                            '''
+        
+                        }
+                    } catch (Exception e) {
+                        error("Deployment failed: ${e.message}")
                     }
                 }
             }
         }
-        stage('Request for Approval') {
+        // ------------------- PROD DEPLOY -------------------
+        stage('Deploy to Prod Environment') {
             steps {
-                timeout(activity: true, time: 10) {
-                    input message: 'Needs Approval ', submitter: 'admin'
-                }
-            }
-        }
-        stage('Deploy to prod') {
-            steps {
-                sshagent(['ansible-key']) {
-                    sh 'ssh -t -t ec2-user@10.0.2.172 -o strictHostKeyChecking=no "ansible-playbook -i /etc/ansible/prod-hosts /etc/ansible/prod-playbook.yml"'
-                }
-            }
-        }
-        stage('check prod website availability') {
-            steps {
-                 sh "sleep 90"
-                 sh "curl -s -o /dev/null -w \"%{http_code}\" https://prod.selfdevops.space"
                 script {
-                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.selfdevops.space", returnStdout: true).trim()
-                    if (response == "200") {
-                        slackSend(color: 'good', message: "The prod petclinic website is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack')
-                    } else {
-                        slackSend(color: 'danger', message: "The prod petclinic wordpress website appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack')
+                    try {
+                        withCredentials([
+                            string(credentialsId: 'bastion-id', variable: 'BASTION_ID'),
+                            string(credentialsId: 'ansible-ip', variable: 'ANSIBLE_IP')
+                        ]) {
+        
+                            sh '''
+                            aws ssm send-command \
+                              --instance-ids $BASTION_ID \
+                              --region eu-west-3 \
+                              --document-name "AWS-RunShellScript" \
+                              --comment "Deploy via Bastion to Ansible" \
+                              --parameters 'commands=[
+                                "ssh -o StrictHostKeyChecking=no ec2-user@$ANSIBLE_IP sudo /usr/bin/ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml"
+                              ]' \
+                              --output text
+                            '''
+        
+                        }
+                    } catch (Exception e) {
+                        error("Deployment failed: ${e.message}")
                     }
                 }
             }
         }
+        stage('Check Prod Website') {
+            steps {
+                sleep 90
+                script {
+                    def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.everythingops.io", returnStdout: true).trim()
+                    if (response == "200") {
+                        slackSend(color: 'good', message: "Prod app is UP (${response})", tokenCredentialId: 'slack-cred')
+                    } else {
+                        slackSend(color: 'danger', message: "Prod app is DOWN (${response})", tokenCredentialId: 'slack-cred')
+                    }
+                }
+            }
+        }
+
     }
 }
