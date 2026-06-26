@@ -76,7 +76,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t 51.44.10.234:8085/petclinicapps:latest .'
+                sh 'docker build -t 15.236.43.88:8085/petclinicapps:latest .'
             }
         }
 
@@ -88,7 +88,7 @@ pipeline {
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
                     sh '''
-                        echo "$DOCKER_PASS" | docker login 51.44.10.234:8085 \
+                        echo "$DOCKER_PASS" | docker login 15.236.43.88:8085 \
                         --username "$DOCKER_USER" --password-stdin
                     '''
                 }
@@ -97,13 +97,13 @@ pipeline {
 
         stage('Trivy Image Scan') {
             steps {
-                sh 'trivy image --insecure -f table 51.44.10.234:8085/petclinicapps:latest'
+                sh 'trivy image --insecure -f table 15.236.43.88:8085/petclinicapps:latest'
             }
         }
 
         stage('Push to Nexus Docker Repo') {
             steps {
-                sh 'docker push 51.44.10.234:8085/petclinicapps:latest'
+                sh 'docker push 15.236.43.88:8085/petclinicapps:latest'
             }
         }
 
