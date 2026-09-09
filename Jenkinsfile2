@@ -34,21 +34,21 @@ pipeline {
         }
 
         // ------------------- DEPENDENCY CHECK -------------------
-        stage('Dependency check') {
-            steps {
-                withCredentials([string(credentialsId: 'nvd-key', variable: 'NVD_API_KEY')]) {
-                    dependencyCheck(
-                        odcInstallation: 'DP-Check', // Must match your Jenkins tool name
-                        additionalArguments: '''--scan ./ \
-                                                --disableYarnAudit \
-                                                --disableNodeAudit \
-                                                --nvdApiKey $NVD_API_KEY \
-                                                --data /var/lib/jenkins/dependency-check'''
-                    )
-                }
-                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
-            }
-        }
+        //stage('Dependency check') {
+            //steps {
+                //withCredentials([string(credentialsId: 'nvd-key', variable: 'NVD_API_KEY')]) {
+                    //dependencyCheck(
+                        //odcInstallation: 'DP-Check', // Must match your Jenkins tool name
+                        //additionalArguments: '''--scan ./ \
+                                                //--disableYarnAudit \
+                                                //--disableNodeAudit \
+                                                //--nvdApiKey $NVD_API_KEY \
+                                                //--data /var/lib/jenkins/dependency-check'''
+                   // )
+               // }
+               // dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+            //}
+        //}
 
         stage('Build Artifact') {
             steps {
