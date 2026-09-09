@@ -56,7 +56,7 @@ pipeline {
             }
             stage('Build Docker Image') {
                 steps {
-                    sh 'docker build -t 15.236.43.88:8085/petclinicapps:latest .'
+                    sh 'docker build -t 13.39.160.194:8085/petclinicapps:latest .'
             }
         }
 
