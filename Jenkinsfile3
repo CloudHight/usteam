@@ -31,6 +31,29 @@ pipeline {
                   dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
               }
           }
+           stage('Build Artifact') {
+                steps {
+                    sh 'mvn clean package -DskipTests -Dcheckstyle.skip'
+                }
+            }
+    
+            stage('Push Artifact to Nexus Repo') {
+                steps {
+                    nexusArtifactUploader artifacts: [[
+                        artifactId: 'spring-petclinic',
+                        classifier: '',
+                        file: 'target/spring-petclinic-2.4.2.war',
+                        type: 'war'
+                    ]],
+                    credentialsId: 'nexus-cred',
+                    groupId: 'Petclinic',
+                    nexusUrl: 'nexus.everythingops.io',
+                    nexusVersion: 'nexus3',
+                    protocol: 'https',
+                    repository: 'nexus-repo',
+                    version: '1.0'
+                }
+            }
 
 
     }
