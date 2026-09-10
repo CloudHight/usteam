@@ -72,7 +72,24 @@ pipeline {
                         '''
                     }
                 }
-            }    
+            } 
+            stage('Trivy Image Scan') {
+                steps {
+                    sh 'trivy image --insecure -f table 15.237.50.12:8085/petclinicapps:latest'
+                }
+            }
+    
+            stage('Push to Nexus Docker Repo') {
+                steps {
+                    sh 'docker push 15.237.50.12:8085/petclinicapps:latest'
+                }
+            }
+    
+            stage('Prune Docker Images') {
+                steps {
+                    sh 'docker image prune -f'
+                }
+            }
     }
 
 }
