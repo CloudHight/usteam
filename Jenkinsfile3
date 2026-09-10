@@ -67,7 +67,7 @@ pipeline {
                         passwordVariable: 'DOCKER_PASS'
                     )]) {
                         sh '''
-                            echo "$DOCKER_PASS" | docker login 15.237.50.12:8085 \
+                            echo "$DOCKER_PASS" | docker login 15.237.50.12:8082 \
                             --username "$DOCKER_USER" --password-stdin
                         '''
                     }
