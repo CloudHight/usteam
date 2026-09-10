@@ -90,6 +90,35 @@ pipeline {
                     sh 'docker image prune -f'
                 }
             }
+            // ------------------- STAGE DEPLOY -------------------
+           stage('Deploy to Stage Environment') {
+                steps {
+                    script {
+                        try {
+                            withCredentials([
+                                string(credentialsId: 'bastion-id', variable: 'BASTION_ID'),
+                                string(credentialsId: 'ansible-ip', variable: 'ANSIBLE_IP')
+                            ]) {
+            
+                                sh '''
+                                aws ssm send-command \
+                                  --instance-ids $BASTION_ID \
+                                  --region eu-west-3 \
+                                  --document-name "AWS-RunShellScript" \
+                                  --comment "Deploy via Bastion to Ansible" \
+                                  --parameters 'commands=[
+                                    "ssh -o StrictHostKeyChecking=no ec2-user@$ANSIBLE_IP sudo /usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"
+                                  ]' \
+                                  --output text
+                                '''
+            
+                            }
+                        } catch (Exception e) {
+                            error("Deployment failed: ${e.message}")
+                        }
+                    }
+                }
+            }
     }
 
 }
