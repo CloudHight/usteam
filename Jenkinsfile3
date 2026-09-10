@@ -59,7 +59,20 @@ pipeline {
                     sh 'docker build -t 15.237.50.12:8085/petclinicapps:latest .'
             }
         }
-
+            stage('Login to Nexus Docker Repo') {
+                steps {
+                    withCredentials([usernamePassword(
+                        credentialsId: 'nexus-cred',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )]) {
+                        sh '''
+                            echo "$DOCKER_PASS" | docker login 15.236.43.88:8085 \
+                            --username "$DOCKER_USER" --password-stdin
+                        '''
+                    }
+                }
+            }
     }
 
 }
