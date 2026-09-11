@@ -107,7 +107,7 @@ pipeline {
                                   --document-name "AWS-RunShellScript" \
                                   --comment "Deploy via Bastion to Ansible" \
                                   --parameters 'commands=[
-                                    "ssh -o StrictHostKeyChecking=no ec2-user@$ANSIBLE_IP sudo /usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"
+                                    "ssh -o StrictHostKeyChecking=no ec2-user@$ANSIBLE_IP sudo /usr/bin/ansible-playbook -i /etc/ansible/hosts /etc/ansible/deployment.yml"
                                   ]' \
                                   --output text
                                 '''
