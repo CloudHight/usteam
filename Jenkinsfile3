@@ -119,6 +119,48 @@ pipeline {
                     }
                 }
             }
+            // ------------------- PROD DEPLOY -------------------
+            stage('Deploy to Prod Environment') {
+                steps {
+                    script {
+                        try {
+                            withCredentials([
+                                string(credentialsId: 'bastion-id', variable: 'BASTION_ID'),
+                                string(credentialsId: 'ansible-ip', variable: 'ANSIBLE_IP')
+                            ]) {
+            
+                                sh '''
+                                aws ssm send-command \
+                                  --instance-ids $BASTION_ID \
+                                  --region eu-west-3 \
+                                  --document-name "AWS-RunShellScript" \
+                                  --comment "Deploy via Bastion to Ansible" \
+                                  --parameters 'commands=[
+                                    "ssh -o StrictHostKeyChecking=no ec2-user@$ANSIBLE_IP sudo /usr/bin/ansible-playbook -i /etc/ansible/prod_hosts /etc/ansible/deployment.yml"
+                                  ]' \
+                                  --output text
+                                '''
+            
+                            }
+                        } catch (Exception e) {
+                            error("Deployment failed: ${e.message}")
+                        }
+                    }
+                }
+            }
+            stage('Check Prod Website') {
+                steps {
+                    sleep 90
+                    script {
+                        def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.gaurav-devops.site", returnStdout: true).trim()
+                        if (response == "200") {
+                            slackSend(color: 'good', message: "Prod app is UP (${response})", tokenCredentialId: 'slack-cred')
+                        } else {
+                            slackSend(color: 'danger', message: "Prod app is DOWN (${response})", tokenCredentialId: 'slack-cred')
+                        }
+                    }
+                }
+            }
     }
 
 }
