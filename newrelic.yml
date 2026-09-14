@@ -1,7 +1,9 @@
 common: &default_settings
   # ============================== LICENSE KEY ===============================
-  # You must specify the license key associated with your New Relic account.
-  license_key: 'eu01xxfa24eabe12a78c355a6973ce5b51abNRAL'
+  # Set via the NEW_RELIC_LICENSE_KEY environment variable at container
+  # runtime (it overrides this value) - never hardcode a real key here,
+  # this file is committed to a public repo.
+  license_key: 'REPLACED_AT_RUNTIME_BY_NEW_RELIC_LICENSE_KEY_ENV_VAR'
   agent_enabled: true
   # Set the name of your application as you'd like it show up in New Relic.
   app_name: 'pet_adoption'
