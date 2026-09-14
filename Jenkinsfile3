@@ -56,7 +56,7 @@ pipeline {
             }
             stage('Build Docker Image') {
                 steps {
-                    sh 'docker build -t 15.237.93.144:8085/petclinicapps:latest .'
+                    sh 'docker build -t 35.180.75.208:8085/petclinicapps:latest .'
             }
         }
             stage('Login to Nexus Docker Repo') {
@@ -67,7 +67,7 @@ pipeline {
                         passwordVariable: 'DOCKER_PASS'
                     )]) {
                         sh '''
-                            echo "$DOCKER_PASS" | docker login 15.237.93.144:8085 \
+                            echo "$DOCKER_PASS" | docker login 35.180.75.208:8085 \
                             --username "$DOCKER_USER" --password-stdin
                         '''
                     }
@@ -75,13 +75,13 @@ pipeline {
             } 
             stage('Trivy Image Scan') {
                 steps {
-                    sh 'trivy image --insecure -f table 15.237.93.144:8085/petclinicapps:latest'
+                    sh 'trivy image --insecure -f table 35.180.75.208:8085/petclinicapps:latest'
                 }
             }
     
             stage('Push to Nexus Docker Repo') {
                 steps {
-                    sh 'docker push 15.237.93.144:8085/petclinicapps:latest'
+                    sh 'docker push 35.180.75.208:8085/petclinicapps:latest'
                 }
             }
     
@@ -107,7 +107,7 @@ pipeline {
                                   --document-name "AWS-RunShellScript" \
                                   --comment "Deploy via Bastion to Ansible" \
                                   --parameters 'commands=[
-                                    "ssh -o StrictHostKeyChecking=no ec2-user@$ANSIBLE_IP sudo /usr/bin/ansible-playbook -i /etc/ansible/hosts /etc/ansible/deployment.yml"
+                                    "ssh -o StrictHostKeyChecking=no ec2-user@$ANSIBLE_IP sudo /usr/bin/ansible-playbook -i /etc/ansible/stage_hosts /etc/ansible/deployment.yml"
                                   ]' \
                                   --output text
                                 '''
