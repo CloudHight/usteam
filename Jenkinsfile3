@@ -152,7 +152,7 @@ pipeline {
                 steps {
                     sleep 90
                     script {
-                        def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod.gaurav-devops.site", returnStdout: true).trim()
+                        def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://prod-app.everythingops.io", returnStdout: true).trim()
                         if (response == "200") {
                             slackSend(color: 'good', message: "Prod app is UP (${response})", tokenCredentialId: 'slack-cred')
                         } else {
