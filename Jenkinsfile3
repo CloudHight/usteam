@@ -139,7 +139,7 @@ pipeline {
                         def zapStatus = sh(
                             script: '''
                                 docker run --rm -v $WORKSPACE:/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable \
-                                  zap-baseline.py -t https://stage.everythingops.io/ \
+                                  zap-baseline.py -t https://stage-app.everythingops.io/ \
                                   -r zap-report.html -J zap-report.json
                             ''',
                             returnStatus: true
