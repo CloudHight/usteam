@@ -22,15 +22,15 @@ pipeline {
               }
             }
         }
-          //stage('Dependency check') {
-              //steps {
-                  //withCredentials([string(credentialsId: 'nvd-key', variable: 'NVD_API_KEY')]) {
-                      //dependencyCheck additionalArguments: "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey $NVD_API_KEY", 
-                          //odcInstallation: 'DP-Check'
-                  //}
-                  //dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
-              //}
-          //}
+          stage('Dependency check') {
+              steps {
+                  withCredentials([string(credentialsId: 'nvd-key', variable: 'NVD_API_KEY')]) {
+                      dependencyCheck additionalArguments: "--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey $NVD_API_KEY", 
+                          odcInstallation: 'DP-Check'
+                  }
+                  dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+              }
+          }
            stage('Build Artifact') {
                 steps {
                     sh 'mvn clean package -DskipTests -Dcheckstyle.skip'
@@ -119,6 +119,50 @@ pipeline {
                     }
                 }
             }
+            stage('check website availability') {
+                steps {
+                     sh "sleep 90"
+                     sh "curl -s -o /dev/null -w \"%{http_code}\" https://stage.everythingops.io/"
+                    script {
+                        def response = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://stage.everythingops.io/", returnStdout: true).trim()
+                        if (response == "200") {
+                            slackSend(color: 'good', message: "The stage petclinic java application is up and running with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
+                        } else {
+                            slackSend(color: 'danger', message: "The stage petclinic java application appears to be down with HTTP status code ${response}.", tokenCredentialId: 'slack-cred')
+                        }
+                    }
+                }
+            }
+            stage('DAST Scan (OWASP ZAP)') {
+                steps {
+                    script {
+                        def zapStatus = sh(
+                            script: '''
+                                docker run --rm -v $WORKSPACE:/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable \
+                                  zap-baseline.py -t https://stage.everythingops.io/ \
+                                  -r zap-report.html -J zap-report.json
+                            ''',
+                            returnStatus: true
+                        )
+                        archiveArtifacts artifacts: 'zap-report.html,zap-report.json', allowEmptyArchive: true
+                        // zap-baseline.py exits non-zero on WARN/FAIL alerts as well as scan
+                        // errors; treat it as informational (like the other scan stages above)
+                        // rather than aborting the promotion to prod.
+                        if (zapStatus != 0) {
+                            slackSend(color: 'warning', message: "OWASP ZAP baseline scan on stage.everythingops.io flagged issues (exit ${zapStatus}) - review zap-report.html on build ${env.BUILD_URL}.", tokenCredentialId: 'slack-cred')
+                        } else {
+                            slackSend(color: 'good', message: "OWASP ZAP baseline scan on stage.everythingops.io passed with no alerts.", tokenCredentialId: 'slack-cred')
+                        }
+                    }
+                }
+            }
+            stage('Request for Approval') {
+                steps {
+                    timeout(activity: true, time: 10) {
+                        input message: 'Needs Approval ', submitter: 'admin'
+                    }
+                }
+            }
             // ------------------- PROD DEPLOY -------------------
             stage('Deploy to Prod Environment') {
                 steps {
@@ -148,6 +192,7 @@ pipeline {
                     }
                 }
             }
+            
             stage('Check Prod Website') {
                 steps {
                     sleep 90
