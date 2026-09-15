@@ -56,7 +56,7 @@ pipeline {
             }
             stage('Build Docker Image') {
                 steps {
-                    sh 'docker build -t 35.180.75.208:8085/petclinicapps:latest .'
+                    sh 'docker build -t 13.36.175.16:8085/petclinicapps:latest .'
             }
         }
             stage('Login to Nexus Docker Repo') {
@@ -67,7 +67,7 @@ pipeline {
                         passwordVariable: 'DOCKER_PASS'
                     )]) {
                         sh '''
-                            echo "$DOCKER_PASS" | docker login 35.180.75.208:8085 \
+                            echo "$DOCKER_PASS" | docker login 13.36.175.16:8085 \
                             --username "$DOCKER_USER" --password-stdin
                         '''
                     }
@@ -75,13 +75,13 @@ pipeline {
             } 
             stage('Trivy Image Scan') {
                 steps {
-                    sh 'trivy image --insecure -f table 35.180.75.208:8085/petclinicapps:latest'
+                    sh 'trivy image --insecure -f table 13.36.175.16:8085/petclinicapps:latest'
                 }
             }
     
             stage('Push to Nexus Docker Repo') {
                 steps {
-                    sh 'docker push 35.180.75.208:8085/petclinicapps:latest'
+                    sh 'docker push 13.36.175.16:8085/petclinicapps:latest'
                 }
             }
     
@@ -149,9 +149,9 @@ pipeline {
                         // errors; treat it as informational (like the other scan stages above)
                         // rather than aborting the promotion to prod.
                         if (zapStatus != 0) {
-                            slackSend(color: 'warning', message: "OWASP ZAP baseline scan on stage.everythingops.io flagged issues (exit ${zapStatus}) - review zap-report.html on build ${env.BUILD_URL}.", tokenCredentialId: 'slack-cred')
+                            slackSend(color: 'warning', message: "OWASP ZAP baseline scan on stage-app.everythingops.io flagged issues (exit ${zapStatus}) - review zap-report.html on build ${env.BUILD_URL}.", tokenCredentialId: 'slack-cred')
                         } else {
-                            slackSend(color: 'good', message: "OWASP ZAP baseline scan on stage.everythingops.io passed with no alerts.", tokenCredentialId: 'slack-cred')
+                            slackSend(color: 'good', message: "OWASP ZAP baseline scan on stage-app.everythingops.io passed with no alerts.", tokenCredentialId: 'slack-cred')
                         }
                     }
                 }
